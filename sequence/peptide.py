@@ -5,7 +5,7 @@ import os
 import random
 import re
 import collections
-import utils
+from services import utils
 import msa
 import uuid
 from Bio.Blast import NCBIXML
