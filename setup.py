@@ -11,7 +11,7 @@ setup(
   keywords = ['protein', 'sequence'], # arbitrary keywords
   classifiers = [],
   install_requires=[
-          'bs4', 'Bio', 'urllib2', 'numpy'
+          'bs4', 'biopython', 'numpy'
       ],
     dependency_links = [
         "http://dev.danse.us/trac/pathos"
