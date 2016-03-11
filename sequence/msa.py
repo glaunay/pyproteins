@@ -8,7 +8,7 @@ from Bio.Alphabet import IUPAC
 import json
 from copy import copy, deepcopy
 from alignment import nw_custom
-import Peptide
+import peptide
 import copy
 from alignment import scoringFunctions
 import pathos.multiprocessing as mp
