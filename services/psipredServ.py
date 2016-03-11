@@ -5,7 +5,7 @@ import subprocess
 import os
 import json
 from cStringIO import StringIO
-import utils
+from services import utils
 
 SOCKET = "/projet/extern/save/gulaunay/tmp/socket/ppsvr"
 INPUT_FORMAT='^[\s]*([\d]+)[\s]+([\S]+)[\s]+([\S]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+)'
