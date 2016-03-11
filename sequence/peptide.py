@@ -1,12 +1,12 @@
 #import customCollection
-import psipredServ
+from services import psipredServ
 import json
 import os
 import random
 import re
 import collections
 import utils
-import Msa
+import msa
 import uuid
 from Bio.Blast import NCBIXML
 from subprocess import call
