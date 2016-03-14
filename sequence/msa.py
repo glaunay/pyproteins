@@ -7,10 +7,11 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 import json
 from copy import copy, deepcopy
-from alignment import nw_custom
-import peptide
-import copy
-from alignment import scoringFunctions
+
+import pyproteins.alignment.nw_custom as nw_custom
+import pyproteins.sequence.peptide as peptide
+import pyproteins.alignment.scoringFunctions as scoringFunctions
+
 import pathos.multiprocessing as mp
 
 

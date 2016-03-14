@@ -1,12 +1,14 @@
 #import customCollection
-from services import psipredServ
+
+import pyproteins.services.psipredServ as psipredServ
+import pyproteins.services.utils as utils
+
+import msa
 import json
 import os
 import random
 import re
 import collections
-from services import utils
-import msa
 import uuid
 from Bio.Blast import NCBIXML
 from subprocess import call
@@ -178,6 +180,8 @@ class EntrySet(object): #customCollection.EntrySet
     @property # return list of peptides name
     def labels(self):
         return [ e.id for e in self ]
+
+
 
 
 class Entry(object):
