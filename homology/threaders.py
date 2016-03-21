@@ -47,7 +47,10 @@ def hhAlignParse(resultFilePath):
 #        tObj.hhDump(filePath=sgeFolder + '/' + 'template.hhFasta')
 
 
-def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir=None):
+def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir=None, bModel=True):
+
+
+    data = []
 
     if isinstance(template, list) and bSge:
         queryFilePath = workDir + '/' + 'query.hhFasta'
@@ -61,6 +64,8 @@ def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir
 
                 sgeFolder = workDir + '/hhAlign_' + str(i)
                 pyproteins.services.utils.mkdir(sgeFolder)
+
+                data.append({'workDir' : sgeFolder})
 
                 templateFilePath = sgeFolder + '/' + 'template.hhFasta'
                 tObj.hhDump(filePath=templateFilePath)
@@ -79,14 +84,22 @@ def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir
                 jobListId.append(s.runJob(jt))
                 print 'HHalign ---> template ' + tObj.id + ', sgeID : ' + jobListId[-1]
 
+
             for i,curjob in enumerate(jobListId):
                 print('Collecting job ' + curjob)
                 retval = s.wait(curjob, drmaa.Session.TIMEOUT_WAIT_FOREVER)
                 print('Job: {0} finished with status {1}'.format(retval.jobId,
                                                     retval.hasExited))
-                sgeFolder = workDir + '/hhAlign_' + str(i)
-                datum = hhAlignParse(sgeFolder + '/hhAlign.out')
-                hhMask(query, template[i], datum)
+
+                data[i]['hhAlignFilePath'] =  data[i]['workDir'] + '/hhAlign.out'
+                data[i]['hhAlignResults'] = hhAlignParse( data[i]['hhAlignFilePath'] )
+                data[i]['hhAlignStrands'] = hhMask(query, template[i],  data[i]['hhAlignResults'])
+                data[i]['pirFilePath'] = data[i]['workDir'] + '/default.pir'
+                pirDump(data[i], template=template[i], query=query, chainID='A',filePath=data[i]['pirFilePath'])
+
+        if bModel:
+            modellerAll(query, template, data)
+
                 #print datum
 
 
@@ -134,15 +147,85 @@ def hhMask(query, template, hhDatum):
 
     qStrand += '*'
     tStrand += '*'
+    return { 'Q' : qStrand, 'T' : tStrand }
 
-    print '>example of query strand\n' + pyproteins.services.utils.lFormat(qStrand) + '\n'
-    print '>example of template strand ' + template.id + '\n' + pyproteins.services.utils.lFormat(tStrand) + '\n'
+def pirDump(datum, template=None, query=None, chainID='A',filePath=None):
+    strands = datum['hhAlignStrands']
+    hhDatum = datum['hhAlignResults']
 
-def pirDump(chainID='A'):
-    pass
+    filePath = filePath if filePath else os.getcwd + 'default.pir'
+
+    i=0
+    while not template.isPdbDefined( int(hhDatum['T'][i]['pos']) ) :
+        i += 1
+
+    j = len(hhDatum['T']) - 1
+    while not template.isPdbDefined( int(hhDatum['T'][j]['pos']) ) :
+        j -= 1
+
+    #print '-->' + str(i) + ' == ' + str(j) + "<--"
+    #print '-->' + str(hhDatum['T'][i]['pos']) + ' == ' + str(hhDatum['T'][j]['pos']) + "<--"
+
+    templateStart = template.peptide.pdbnum[hhDatum['T'][i]['pos'] - 1]
+    templateStop = template.peptide.pdbnum[hhDatum['T'][j]['pos']  - 1 ]
+
+    pirContent = '>P1;' + template.id + '\nstructure:' + template.pdbSourcePath + ':' + templateStart + ' : ' + chainID
+    pirContent += ' : ' + templateStop + ' : ' + chainID + '::::\n'
+    pirContent += pyproteins.services.utils.lFormat(strands['T']) + '\n\n'
+    pirContent += '>P1;' + query.id + '\nsequence:' + query.id +':1: :' + str(len(query.fasta)) +': ::::\n'
+    pirContent += pyproteins.services.utils.lFormat(strands['T']) + '\n'
+
+    with open (filePath, 'w') as f:
+        f.write(pirContent)
 
 
+def modellerAll(query, template, data, nModel=1):
 
+     with drmaa.Session() as s:
+            print('modeller drmaa session was started successfully')
+            jobListId = []
+            jt = s.createJobTemplate()
+            for i, tObj in enumerate(template):
+                workDir = data[i]['workDir']
+
+                sgeScript = workDir + '/runModeller.sh'
+                with open(sgeScript, "w") as f:
+                    f.write('mod9.16 doModel.py > modeller.log')
+                pyproteins.services.utils.chmodX(sgeScript)
+
+                pyString = '# Comparative modeling by the automodel class\n'
+                pyString += 'from modeller import *              # Load standard Modeller classes\n'
+                pyString += 'from modeller.automodel import *    # Load the automodel class\n'
+                pyString += 'log.verbose()    # request verbose output\n'
+                pyString += 'env = environ()  # create a new MODELLER environment to build this model in\n'
+                pyString += '# directories for input atom files\n'
+                pyString += 'env.io.atom_files_directory = [\'' + os.path.dirname(tObj.pdbSourcePath) + '\']\n'
+                pyString += 'a = automodel(env,\n'
+                pyString += '              alnfile  = \'' + data[i]['pirFilePath'] + '\',     # alignment filename\n'
+                pyString += '              knowns   = \'' + tObj.id + '\',              # codes of the templates\n'
+                pyString += '              sequence = \'' + query.id + '\')              # code of the target\n'
+                pyString += 'a.starting_model= 1                 # index of the first model\n'
+                pyString += 'a.ending_model  = ' + str(nModel) + '                 # index of the last model\n'
+                pyString += '                                    # (determines how many models to calculate)\n'
+                pyString += 'a.make()                            # do the actual comparative modeling\n'
+                with open(workDir + '/doModel.py', "w") as f:
+                     f.write(pyString)
+
+
+                jt.workingDirectory = workDir
+                jt.joinFiles = True
+                jt.nativeSpecification= "-q short.q";
+                jt.outputPath = ':' + workDir
+                jt.errorPath = ':' + workDir
+                jt.jobEnvironment = {'PATH': os.environ['PATH'], 'KEY_MODELLER6v2' : 'MODELIRANJE' }
+                jt.remoteCommand = sgeScript
+                jobListId.append(s.runJob(jt))
+
+            for i,curjob in enumerate(jobListId):
+                print('Collecting modeller job ' + curjob)
+                retval = s.wait(curjob, drmaa.Session.TIMEOUT_WAIT_FOREVER)
+                print('Job: {0} finished with status {1}'.format(retval.jobId,
+                                                    retval.hasExited))
 
 
 class HomologyModel(object):

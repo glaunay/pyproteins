@@ -72,7 +72,7 @@ class Template(pyproteins.homology.core.Core):
         pyproteins.homology.core.Core.__init__(self)
         self.structure = None
         self.pdbSeq = None
-
+        self.pdbSourcePath = pdbSource
         self.folder = folder
         self.pdbSource = PDBparser.get_structure('mdl', pdbSource)
         model = self.pdbSource[0] if not modelID else self.pdbSource[modelID]
