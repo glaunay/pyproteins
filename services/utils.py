@@ -2,9 +2,63 @@ import sys
 import os
 import errno
 import StringIO
-
+import re
 import os.path
 from types import ModuleType
+import stat
+
+
+
+def getAvailableTagFile(fPath, nLim=100):
+    if os.path.isfile(fPath):
+        backUpFileRoot = fPath + '.old'
+        backUpFile = backUpFileRoot
+        if os.path.isfile(backUpFile):
+            for i in range(1, nLim):
+                if os.path.isfile(backUpFileRoot + '_' + str(i)):
+                    continue
+                else:
+                    backUpFile = backUpFileRoot + '_' + str(i)
+                    break
+                raise ValueError, 'Tag number limit exceeded for ' + fPath
+
+        print 'moving previous ' + fPath + ' to ' + backUpFile
+        os.rename(fPath, backUpFile)
+    return fPath
+
+
+
+# inject carriage returns in long string to obtain mutliline fixed width lines
+def lFormat(string, nCol=60):
+    return ''.join([x+'\n' if (i+1)%nCol == 0 else x for i,x in enumerate(string) ])
+
+
+# from http://stackoverflow.com/questions/12791997/how-do-you-do-a-simple-chmod-x-from-within-python
+def chmodX(filePath):
+    st = os.stat(filePath)
+    os.chmod(filePath, st.st_mode | stat.S_IEXEC)
+
+def checkEnv(keyList):
+    for key in keyList:
+        if not os.environ.get(key):
+            raise ValueError("Environment variable " + key + " not defined")
+    return True
+
+
+# emulates find unix command
+def find(sType='file', **kwargs):
+
+    patt = kwargs['name'].replace("*", ".*")
+    if 'path' not in kwargs and 'name' not in kwargs:
+        raise ValueError
+    if sType == 'file':
+        result = [os.path.join(dp, f) for dp, dn, filenames in os.walk(kwargs['path']) for f in filenames if re.match(patt, f)]
+
+    if sType == 'dir':
+        result = [os.path.join(dp, d) for dp, dn, filenames in os.walk(kwargs['path']) for d in dn if re.match(patt, d)]
+
+    return result
+
 
 def which(program):
     def is_exe(fpath):

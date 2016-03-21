@@ -1,9 +1,12 @@
 from Bio.PDB import *
-import Peptide
+import pyproteins.sequence.peptide
 import copy
-import Msa
-import os.path
-#from Bio.PDB.Polypeptide import PPBuilder
+import pyproteins.sequence.msa
+import os
+import pyproteins.homology.core
+import pyproteins.services.utils
+from shutil import copyfile
+import string
 
 '''
     One or several pdb files
@@ -17,6 +20,31 @@ import os.path
 
 PDBparser = PDBParser()
 
+def makeAll(templateList, bMsa=True, bPsipred=False, workDir=os.getcwd(), bSge=False, force=False, blastDbRoot=None, blastDb=None):
+
+    if bSge:
+        blastBean  = {
+            'env' : 'sge',
+            'blastDb' : blastDb,
+            'blastDbRoot' : blastDbRoot,
+            'rootDir' : workDir,
+            'bPsipred' : bPsipred,
+            'bBlast' : bMsa,
+            'blastExecParam' : { '-j' : 8 }
+        }
+
+        if bMsa:
+            tmpPeptideSet = pyproteins.sequence.peptide.EntrySet(name="templateMakeTmpSet")
+            for tObj in templateList:
+                tmpPeptideSet.add(tObj.peptide)
+            res = tmpPeptideSet.blastAll(blastBean, blastXmlOnly=True)
+            # This assumes all job went well
+            # should make it more flexible
+            for i, tObj in enumerate(templateList):
+                tObj.bind(psiBlastOutputXml=res[i]['msa'])
+                tObj.store(psiBlastOutputXml=res[i]['msa'], tag='_GPCRs', bMsa=True)
+
+
 def fastaFileToList(file):
     comment = ''
     data = []
@@ -28,56 +56,23 @@ def fastaFileToList(file):
                 data += line.split()
     return { 'header' : comment, 'data' : data }
 
+class TemplatePeptide(pyproteins.sequence.peptide.Entry):
+    def __init__(self, datum):
+        pyproteins.sequence.peptide.Entry.__init__(self, id=datum['id'])
+        self.pdbnum = []
 
-
-class HomologyModel:
-    def __init__(self, aliFile=None, sequence=None, templateArray=None):
-        self.templates = []
-        pass
-    def addTemplate(self, pdbFile):
-        self.templates.append(Template(pdbFile))
-
-    def addQuery(self, **kwargs):
-        if kwargs is not None:
-        #    for key, value in kwargs.iteritems():
-        #        print "%s == %s" %(key,value)
-            if "sequence" in kwargs:
-                self.query = Query(**kwargs)
-
-    def link():
-        if not self.msa:
-            print "no msa found for query have to blast it, plz wait..."
-            self.msa = self.peptide.blast()
-        for template in self.templates:
-            Msa.map(self.msa, template.msa)
-
-class Query: # Possible input, aa sequence string or mfasta file or mfasta bean
-    def __init__(self, **kwargs):
-        if kwargs is not None:
-            if 'sequence' in kwargs:
-                print "loading peptide sequence " + kwargs['sequence']
-                self.peptide = Peptide.Entry(id='homol-mdl', seq=kwargs['sequence'])
-            elif 'fastaFile' in kwargs:
-                self.peptide = Peptide.Entry()
-                self.peptide.parse(kwargs['fastaFile'])
-            if 'msaFile' in kwargs:
-                print "loading msa from file"
-                self.msa = Msa(fileName=kwargs['msaFile'])
-
-
-
-class Template:
+class Template(pyproteins.homology.core.Core):
 
     def __repr__(self):
-        return 'template string'
+        #if self.structure:
 
-    def __init__(self, pdbSource, modelID = None, chain = None, folder=None, id = None):
+        return str(self.peptide)
+
+    def __init__(self, pdbSource, modelID=None, chain=None, folder=None, id=None):
+        pyproteins.homology.core.Core.__init__(self)
         self.structure = None
         self.pdbSeq = None
-        self.mAli = None
-        self.pdbnum = None
-        self.see = None
-        self.fasta = None
+
         self.folder = folder
         self.pdbSource = PDBparser.get_structure('mdl', pdbSource)
         model = self.pdbSource[0] if not modelID else self.pdbSource[modelID]
@@ -89,8 +84,24 @@ class Template:
 
         # Extract CA sequence and compute pairwise dist
         self.pdbSeq = [ r['CA'] for r in self.structure if 'CA' in r ]
+
+        self.peptide = TemplatePeptide({ 'id' : self.id })
+
         self._setFromFolder()
-        print 'Done'
+        #if not self.peptide.seq:
+        #    self.peptide.seq.pdbSeq
+        print 'Template ' + self.id + ' loaded'
+
+
+    def store(self, tag='', psiBlastOutputXml=None, bMsa=False):
+        fPath = self.folder if self.folder else os.getcwd()
+        if psiBlastOutputXml:
+            fPathX = pyproteins.services.utils.getAvailableTagFile(fPath + '/' + self.id + tag + '.blast')
+            copyfile(psiBlastOutputXml, fPathX)
+        if bMsa:
+            fPathM = pyproteins.services.utils.getAvailableTagFile(fPath + '/' + self.id + tag + '.mali')
+            self.mAli.fastaDump(outputFile=fPathM)
+
 
     ## initialize object attributes from a make core folder if any provided
     def _setFromFolder(self):
@@ -99,14 +110,21 @@ class Template:
         # pdbnum
         for file in os.listdir(self.folder):
             #print file
+            fPath = self.folder + '/' + file
             if file.endswith('.pdbnum'):
-                data = fastaFileToList(self.folder + '/' + file)
-                self.pdbnum = data['data']
+                data = fastaFileToList(fPath)
+                self.peptide.pdbnum = data['data']
             if file.endswith('.fasta'):
-                data = fastaFileToList(self.folder + '/' + file)
-                print file
-                self.fasta = data['data']
-                #print self.fasta
+                data = fastaFileToList(fPath)
+                self.peptide.seq = ''.join(data['data'])
+                self.peptide.desc = data['header']
+            if file.endswith('.psipred_ss2'):
+                self.peptide.ss2Bind(file=fPath)
+            if file.endswith('.blast'):
+                self.bind(psiBlastOutputXml=fPath)
+
+        self.bind(psipredFolder=self.folder)
+
 
     @property
     def aaSeq(self):
@@ -115,10 +133,14 @@ class Template:
         #for atom in self.sequence
         return [ (Peptide.threeToOne(atom.get_parent().resname)) for atom in self.pdbSeq ]
 
-    def msa(self, psiBlastOutputXml=None):
-        if not self.mAli:
-            peptide = Peptide.Entry(id = "PDB template sequence", seq = ''.join(self.aaSeq))
-            self.mAli = peptide.blast(psiBlastOutputXml)
-        return self.mAli
+    def isPdbDefined(self, index):
+        if (index < 1 ) or (index > len(self.peptide.pdbnum)):
+            raise ValueError, '\'' + str(index) + '\' out of bonds\n'
+        for c in str(self.peptide.pdbnum[index - 1]):
+            if c not in string.printable:
+                return False
+        return True
+
+
 
 

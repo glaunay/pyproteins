@@ -8,9 +8,9 @@ from Bio.Alphabet import IUPAC
 import json
 from copy import copy, deepcopy
 
-import pyproteins.alignment.nw_custom as nw_custom
-import pyproteins.sequence.peptide as peptide
-import pyproteins.alignment.scoringFunctions as scoringFunctions
+import pyproteins.alignment.nw_custom
+import pyproteins.sequence.peptide
+import pyproteins.alignment.scoringFunctions
 
 import pathos.multiprocessing as mp
 
@@ -481,6 +481,14 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             freqAsString += "\n"
         return  header + freqAsString
         #return str(self.asMatrix)
+
+    def fastaDump(self, outputFile=None):
+        if (outputFile):
+            f = open(outputFile,'w')
+            f.write(self.format('fasta'))
+            f.close()
+        else :
+            return self.format('fasta')
 
     def asDict(self):
         backtrack = ''

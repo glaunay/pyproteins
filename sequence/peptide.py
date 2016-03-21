@@ -1,9 +1,12 @@
 #import customCollection
 
-import pyproteins.services.psipredServ as psipredServ
-import pyproteins.services.utils as utils
+import pyproteins.services.psipredServ
+import pyproteins.services.utils
+import pyproteins.sequence.msa
+import pyproteins.sequence.psipred
 
-import msa
+import drmaa
+
 import json
 import os
 import random
@@ -14,6 +17,36 @@ from Bio.Blast import NCBIXML
 from subprocess import call
 from Bio import SeqIO
 
+
+
+def dumpSgeBlast(peptideObj, param, scriptFile):
+
+
+    jBlast = 8
+    if 'blastExecParam' in param:
+        if '-j' in  param['blastExecParam']:
+            jBlast = str(param['blastExecParam']['-j'])
+
+
+    string  ='#!/bin/bash\nprintenv\n'
+    string += 'export BLASTDB=' + param['blastDbRoot'] + '\n'
+    string += 'export BLASTMAT=' + os.environ['BLASTMAT'] + '\n'
+    string += 'blastpgp -j ' + jBlast + ' -i ' + peptideObj.tag + '.fasta -d '
+    string += param['blastDb'] + ' -m 7 -o ' + peptideObj.tag + '.blast\n'
+
+    with open(scriptFile, "w") as f:
+        f.write(string)
+    pyproteins.services.utils.chmodX(scriptFile)
+
+def dumpSgePsipred(peptideObj, param, scriptFile):
+    string  ='#!/bin/bash\nprintenv\n'
+    string += 'export BLASTMAT=' + os.environ['BLASTMAT'] + '\n'
+    string += 'runpsipred ' + peptideObj.tag + '.fasta' + '\n'
+
+    with open(scriptFile, "w") as f:
+        f.write(string)
+
+    pyproteins.services.utils.chmodX(scriptFile)
 
 '''
     WARNING Access to a single ss2 property can rely on a psipred prediciton which can be long.
@@ -28,7 +61,7 @@ Peptide entry are the fundamental entity of the custom NW implementation
 ppServ = None
 
 def startPpServ():
-    pp = psipredServ.Socket()
+    pp = pyproteins.services.psipredServ.Socket()
     return pp
 
 '''
@@ -128,7 +161,7 @@ class EntrySet(object): #customCollection.EntrySet
         data = ppServ.pull(jobid)
 
         for i,d in enumerate(stash):
-            d.ss2Bind(data[i])
+            d.ss2Bind(ss2Obj=data[i])
 
     def __iter__(self):
         for k in self.data:
@@ -177,6 +210,118 @@ class EntrySet(object): #customCollection.EntrySet
                 f.write(asJson)
         return asJson
 
+    # Create a list of blast
+    #
+#blastBean : {
+#    'env' : 'sge', 'slurm', 'local'[DEFAULT]
+#    'blastDb' : REQUIRED
+#    'BLASTDBROOT' : REQUIRED
+#    'rootDir' : oc.getcwd() [DEFAULT]
+#}
+#
+
+    def blastAll(self, blastBean, blastXmlOnly=False):
+
+        if not blastBean:
+            raise ValueError, 'Cant execute blastAll w/ parameters dict'
+
+        print blastBean
+
+        bBlast = blastBean['bBlast'] if 'bBlast' in blastBean else True
+        bPsipred = blastBean['bPsipred'] if 'bPsipred' in blastBean else False
+
+        rootDir = blastBean['rootDir'] if 'rootDir' in blastBean else os.getcwd()
+        if 'env' in blastBean:
+            if blastBean['env'] == 'sge':
+                res = self.sgeBlast(blastBean, bPsipred=bPsipred, bBlast=bBlast, blastXmlOnly=blastXmlOnly)
+                return res
+
+        ## local & slurm  implementation remainings
+
+    def sgeBlast(self, bean, bPsipred=False, bBlast=True, blastXmlOnly=False):
+        if not 'rootDir' in bean:
+            raise ValueError, 'Blast bean \'workDir\' key missing'
+        if bean['rootDir']:
+            if not os.access(bean['rootDir'], os.W_OK):
+                raise ValueError, 'Blast bean work Folder \''+ bean['rootDir'] + '\' does not exist or is not writable'
+
+        if not 'blastDbRoot' in bean:
+            bean['blastDbRoot'] = os.environ["BLASTDB"]
+        if not 'blastDb' in bean:
+            raise ValueError, 'No Database found in blast bean to blast against'
+
+        for ext in ['.phr', '.pin', '.psq']:
+            if os.path.isfile(bean['blastDbRoot'] + '/' + bean['blastDb'] + ext ):
+                continue
+            raise ValueError, bean['blastDbRoot'] + '/' + bean['blastDb'] + ext + ' Not found, can\'t blast'
+
+
+        with drmaa.Session() as s:
+            print('sgeBlast drmaa session was started successfully')
+            #s.initialize()
+            jobListId = []
+            jt = s.createJobTemplate()
+            for p in self:
+                sgeFolder = bean['rootDir'] + '/' + p.tag + '_blast'
+                pyproteins.services.utils.mkdir(sgeFolder)
+
+                p.fastaWrite(path=sgeFolder, fileName=p.tag)
+
+                jt.workingDirectory = sgeFolder
+                jt.joinFiles = True
+                jt.nativeSpecification= "-q short.q";
+                jt.outputPath = ':' + sgeFolder
+                jt.errorPath = ':' + sgeFolder
+
+                jt.jobEnvironment = {'PATH': os.environ['PATH']}
+
+                if bBlast:
+                    sgeScript = sgeFolder + '/' + p.tag + '_sgeBlast.sh'
+                    dumpSgeBlast(p, bean, sgeScript)
+                    jt.jobName = "sgeBlast_" + p.tag
+                    jt.remoteCommand = sgeScript
+                    jobListId.append(s.runJob(jt))
+                if bPsipred: # Psipred will use native blast configuration
+
+                    jt.jobEnvironment = {
+                        'PATH': os.environ['PATH'],
+                        'BLASTDB' : os.environ['BLASTDB']
+                        }
+                    sgeScript = sgeFolder + '/' + p.tag + '_sgePsipred.sh'
+                    dumpSgePsipred(p, bean, sgeScript)
+                    jt.jobName = "sgePsipred_" + p.tag
+                    jt.remoteCommand = sgeScript
+                    jt.workingDirectory = sgeFolder
+                    jobListId.append(s.runJob(jt))
+
+            print 'blastAll sge jobs were submitted with ids ' + str(jobListId)
+
+            s.synchronize(jobListId, drmaa.Session.TIMEOUT_WAIT_FOREVER, False)
+            for curjob in jobListId:
+                print('Collecting job ' + curjob)
+                retval = s.wait(curjob, drmaa.Session.TIMEOUT_WAIT_FOREVER)
+                print('Job: {0} finished with status {1}'.format(retval.jobId,
+                                                     retval.hasExited))
+            #s.deleteJobTemplate(jt)
+            #s.exit()
+        # Parse
+        results = []
+        for p in self:
+            sgeFolder = bean['rootDir'] + '/' + p.tag + '_blast'
+            if bBlast:
+                blastOuput = sgeFolder + '/' + p.tag + '.blast'
+                msaObj = blastOuput if blastXmlOnly else p.blast(blastOuput)
+
+            if bPsipred:
+                ppObj = pyproteins.sequence.psipred.parse(folder=sgeFolder)
+            else :
+                ppObj = None
+            results.append({ 'msa': msaObj, 'sse' : ppObj })
+
+        return results
+
+
+
     @property # return list of peptides name
     def labels(self):
         return [ e.id for e in self ]
@@ -204,8 +349,19 @@ class Entry(object):
             self.seed = random.randint(1,1000000)
         return hash(self.seq + str(self.seed))
 
+    @property
+    def tag(self):
+        tag = re.sub('[\s]+','_', self.id)
+        return tag
 
-    def blast(self, xmlPsiBlastOutput): # return an msa Object
+    def fastaWrite(self, path="./", fileName='default'):
+        path = re.sub('[/]+$', '', path)
+        fName = path + '/' + str(fileName) + '.fasta'
+        with open (fName, 'w') as fOut:
+                fOut.write(self.fasta)
+        print 'peptide \'' + self.id + '\' fasta wrote to file ' + fName
+
+    def blast(self, xmlPsiBlastOutput, **kwargs): # return an msa Object
 
         def hit_check(hit):
             for i in range(0, len(hit.hsps) - 1):
@@ -228,14 +384,13 @@ class Entry(object):
 
         array=[{ 'id' : self.id,  'seq' : list(self.aaSeq) }]
 
-        if not utils.which("blastpgp"):
+        if not pyproteins.services.utils.which("blastpgp"):
             raise initError("Cant find blastpgp executable")
 
-        rootId = uuid.uuid4()
-        with open (str(rootId) + '.fasta', 'w') as fOut:
-            fOut.write(self.fasta)
-
         if not xmlPsiBlastOutput:
+            rootId = uuid.uuid4()
+            self.fastaWrite(name=rootId)
+
             call(['blastpgp', '-j', '2', '-i', str(rootId) + '.fasta', '-d', 'nr70', '-m', '7', '-o', str(rootId) + '.xml'])
             f = open(str(rootId) + '.xml')
             records = NCBIXML.parse(f)
@@ -258,11 +413,12 @@ class Entry(object):
                 for hsp in hit.hsps:
                     hsp_merge(hsp, datum['seq'])
                 array.append(datum)
+            break
 
         f.close()
         #return [[ hit['seq'] for hit in array ], [ hit['id'] for hit in array ]]
-        msaBean = Msa.MsaBean([ hit['seq'] for hit in array ], [ hit['id'] for hit in array ])
-        msa = Msa.Msa(msaBean=msaBean)
+        msaBean = pyproteins.sequence.msa.MsaBean([ hit['seq'] for hit in array ], [ hit['id'] for hit in array ])
+        msa = pyproteins.sequence.msa.Msa(msaBean=msaBean)
         msa.set_id(self.id)
         #return msaBean
         return msa
@@ -291,7 +447,7 @@ class Entry(object):
             self.seq = datum['seq']
             self.description = datum['desc']
             if 'ss2' in datum:
-                self.ss2Obj = psipredServ.collection(stream=datum['ss2'])
+                self.ss2Obj = pyproteins.services.psipredServ.collection(stream=datum['ss2'])
         else:
             if 'id' in kwargs:
                 self.id = kwargs['id']
@@ -316,7 +472,7 @@ class Entry(object):
         v = {'aa' : self.seq[i], 'ss2' : None, 'burial' : None }
         if self.ss2:
             v['ss2'] = self.ss2[i]
-        return Msa.Position(v)
+        return pyproteins.sequence.msa.Position(v)
 
     @property
     def hasSse(self):
@@ -344,7 +500,13 @@ class Entry(object):
             'ss2' : ss2
         }
 
-    def ss2Bind(self, ss2Obj):
+    def ss2Bind(self, **kwargs):
+        ss2Obj = None
+        if 'ss2Obj' in kwargs:
+            ss2Obj = kwargs['ss2Obj']
+        elif 'file' in kwargs:
+            ss2Obj = pyproteins.services.psipredServ.collection(fileName=kwargs['file'])
+
         if ss2Obj.aaSeq != self.aaSeq:
             raise ValueError("amino-acid sequence dont match\n" + ss2Obj.fasta + "\n" + self.fasta)
         self.ss2Obj = ss2Obj
@@ -358,7 +520,7 @@ class Entry(object):
         add = ''
         if self.description:
             add = self.description
-        return ">" + self.id + add + "\n" + self.aaSeq
+        return ">" + self.id + add + "\n" + pyproteins.services.utils.lFormat(self.aaSeq)
 
     @property
     def ss2(self):

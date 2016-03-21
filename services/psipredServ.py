@@ -5,7 +5,7 @@ import subprocess
 import os
 import json
 from cStringIO import StringIO
-import pyproteins.services.utils as utils
+import pyproteins.services.utils
 
 SOCKET = "/projet/extern/save/gulaunay/tmp/socket/ppsvr"
 INPUT_FORMAT='^[\s]*([\d]+)[\s]+([\S]+)[\s]+([\S]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+)'
@@ -112,7 +112,7 @@ class collection():
 
         self.data = [ element(line) for line in bufStream if isValidRecord(line) ]
 
-        if utils.hasMethod(bufStream, "close"):
+        if pyproteins.services.utils.hasMethod(bufStream, "close"):
             bufStream.close()
 
     @property
