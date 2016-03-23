@@ -15,7 +15,6 @@ from setuptools import setup
 
 setup(
   name = 'pyproteins',
-  packages = find_packages(), # this must be the same as the name above
   version = '0.2',
   license='BSD',
   description = 'Toolbox to manipulate protein sequence data',
@@ -32,8 +31,8 @@ setup(
   classifiers = [],
   install_requires=[
           'bs4', 'biopython', 'numpy', 'paramiko'
-      ],
-    dependency_links = [
-        "http://dev.danse.us/trac/pathos"
-    ]
+      ]#,
+  #  dependency_links = [
+  #      "http://dev.danse.us/trac/pathos"
+  #  ]
 )
