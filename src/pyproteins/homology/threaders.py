@@ -47,7 +47,7 @@ def hhAlignParse(resultFilePath):
 #        tObj.hhDump(filePath=sgeFolder + '/' + 'template.hhFasta')
 
 
-def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir=None, bModel=True):
+def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir=None, nModel=0):
 
 
     data = []
@@ -97,8 +97,8 @@ def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir
                 data[i]['pirFilePath'] = data[i]['workDir'] + '/default.pir'
                 pirDump(data[i], template=template[i], query=query, chainID='A',filePath=data[i]['pirFilePath'])
 
-        if bModel:
-            modellerAll(query, template, data)
+        if nModel > 0:
+            modellerAll(query, template, data, nModel=nModel)
 
                 #print datum
 

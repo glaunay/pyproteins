@@ -44,7 +44,7 @@ class Query(pyproteins.homology.core.Core): # Possible input, aa sequence string
             if bMsa:
                 self.bind(msaObj=res[0]['msa'])
             if bSse:
-                self.bin(psipredContainer=res[0]['sse'])
+                self.bind(psipredContainer=res[0]['sse'])
 
         else :
             print "Enriching query data WITHOUT cluster ressources (did not found --sge flag)"

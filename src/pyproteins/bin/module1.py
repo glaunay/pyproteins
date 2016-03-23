@@ -20,6 +20,7 @@ bLoadTemplate = True
 bTemplateView = False
 bTemplateMsaRebuild = False
 bHhThread = False
+nModel = 0
 
 beanConfig = {}
 templateLib = {}
@@ -30,10 +31,11 @@ templateShortList = []
 def hhThread(queryObj, workDir):
     global templateLib
     global bGridEngine
+    global nModel
     workDir=workDir + '/models'
     u.mkdir(workDir)
 
-    thr.hhAlign(query=queryObj, template=[ templateLib[t]['obj'] for t in templateLib ], bSge=bGridEngine, workDir=workDir)
+    thr.hhAlign(query=queryObj, template=[ templateLib[t]['obj'] for t in templateLib ], bSge=bGridEngine, workDir=workDir, nModel=nModel)
 
 # Create working directory foreach template
 # w/ subdirectories for query, hhalign, modeller
@@ -45,9 +47,11 @@ def loadQuery(queryInputFile, workDir):
     if queryInputFile.endswith('fasta'):
         queryObj = hQ.Query(fastaFile=queryInputFile)
         queryObj.make(bSge=bGridEngine, workDir=workDir, blastDbRoot=beanConfig['BLASTDBROOT'], blastDb=beanConfig['blastDb'])
-
+        queryObj.beanDump(filePath=workDir + '/queryBean.json')
     if queryInputFile.endswith('json'):
         queryObj=hQ.loadFromBean(queryInputFile)
+
+
 
 
     #print queryObj.mAli
@@ -124,6 +128,7 @@ def readConfig(fPath):
 
 
 def main(argv):
+    beanConfigPath = None
     global templateShortList
     global bWriteMsa
     global bTemplateView
@@ -131,13 +136,13 @@ def main(argv):
     global bGridEngine
     global bTemplateMsaRebuild
     global bHhThread
-
+    global nModel
     workDir=os.getcwd()
     queryInputFile = None
     print os.getcwd()
 
     try:
-        opts, args = getopt.getopt(argv,"hi:c:g:s:o:q:",["conf","noTemplate","sge","templateList","templateSelect=", "workDir=","templateMsaRebuild", "hhThread"])
+        opts, args = getopt.getopt(argv,"hi:c:g:s:o:q:",["nModel=","noTemplate","sge","templateList","templateSelect=", "workDir=","templateMsaRebuild", "hhThread"])
 
     except getopt.GetoptError as e:
         print e
@@ -169,6 +174,8 @@ def main(argv):
             bHhThread = True
         elif opt == "--templateList":
             bTemplateView = True
+        elif opt == "--nModel":
+            nModel = int(arg)
         elif opt == "-q":
             queryInputFile = arg
         else:

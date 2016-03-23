@@ -19,20 +19,39 @@ class Core(object):
         self.peptide = None
         self.sse = None
         self.id = None
+        self.beanDatum = {
+                            "comments" : None,
+                            "id" : None,
+                            "files" : {
+                                "fasta" : None,
+                                "blast" : None
+                            },
+                            "folders" : {
+                                "psipred" : None
+                                }
+                        }
 
         if kwargs is not None:
             if 'id' in kwargs:
                 self.id = kwargs['id']
             if 'sequence' in kwargs:
                 print "loading peptide sequence " + kwargs['sequence']
-                self.peptide = pyproteins.sequence.peptide.Entry(id='homol-mdl', seq=kwargs['sequence'])
+                self.peptide = pyproteins.sequence.peptide.Entry(seq=kwargs['sequence'])
             elif 'fastaFile' in kwargs:
                 self.peptide = pyproteins.sequence.peptide.Entry()
                 self.peptide.parse(kwargs['fastaFile'])
+                self.beanDatum['files']['fasta'] = kwargs['fastaFile']
             if 'msaFile' in kwargs:
                 print "loading msa from file"
                 msaObj = pyproteins.sequence.msa.Msa(fileName=kwargs['msaFile'])
                 self.bind(msaObj=msaObj)
+
+            if not self.id:
+                if self.peptide:
+                    self.id = self.peptide.id
+
+            if not self.id:
+                raise ValueError, 'No id provided'
 
     def __repr__(self):
         string = ''
@@ -58,11 +77,19 @@ class Core(object):
     #        self.mAli = peptide.blast(psiBlastOutputXml)
     #    return self.mAli
 
+    def beanDump(self, filePath):
+        self.beanDatum['id'] = self.id
+        self.beanDatum['comments'] = "auto-generated query bean file"
+
+        if filePath:
+            with open(filePath, 'w') as fp:
+                json.dump(self.beanDatum, fp)
 
 
     def bind(self, peptide=None, psipredFolder=None, msaObj=None, psipredContainer=None, psiBlastOutputXml=None):
         if psipredFolder:
             self.sse = pyproteins.sequence.psipred.parse(folder=psipredFolder)
+            self.beanDatum['folders']['psipred'] = psipredFolder
         if msaObj:
             self.mAli = msaObj
         if psipredContainer:
@@ -71,6 +98,7 @@ class Core(object):
             self.peptide = peptide
         if psiBlastOutputXml:
             self.mAli = self.peptide.blast(psiBlastOutputXml)
+            self.beanDatum['files']['blast'] = psiBlastOutputXml
 
 
     def hhDump(self, filePath=None):

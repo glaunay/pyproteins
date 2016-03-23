@@ -31,7 +31,7 @@ def dumpSgeBlast(peptideObj, param, scriptFile):
     string  ='#!/bin/bash\nprintenv\n'
     string += 'export BLASTDB=' + param['blastDbRoot'] + '\n'
     string += 'export BLASTMAT=' + os.environ['BLASTMAT'] + '\n'
-    string += 'blastpgp -j ' + jBlast + ' -i ' + peptideObj.tag + '.fasta -d '
+    string += 'blastpgp -j ' + str(jBlast) + ' -i ' + peptideObj.tag + '.fasta -d '
     string += param['blastDb'] + ' -m 7 -o ' + peptideObj.tag + '.blast\n'
 
     with open(scriptFile, "w") as f:

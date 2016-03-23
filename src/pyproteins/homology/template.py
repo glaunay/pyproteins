@@ -69,7 +69,8 @@ class Template(pyproteins.homology.core.Core):
         return str(self.peptide)
 
     def __init__(self, pdbSource, modelID=None, chain=None, folder=None, id=None):
-        pyproteins.homology.core.Core.__init__(self)
+        _id = id if id else os.path.basename(pdbSource)
+        pyproteins.homology.core.Core.__init__(self, id=_id)
         self.structure = None
         self.pdbSeq = None
         self.pdbSourcePath = pdbSource
@@ -80,7 +81,6 @@ class Template(pyproteins.homology.core.Core):
         # chain argument
         chainIdSorted = [ key for key, value in sorted(model.child_dict.items()) ]
         self.structure = model[chainIdSorted[0]] if not chain else model[chain]
-        self.id = id if id else os.path.basename(pdbSource)
 
         # Extract CA sequence and compute pairwise dist
         self.pdbSeq = [ r['CA'] for r in self.structure if 'CA' in r ]
