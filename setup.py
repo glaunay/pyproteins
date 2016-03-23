@@ -31,7 +31,11 @@ setup(
   classifiers = [],
   install_requires=[
           'bs4', 'biopython', 'numpy', 'paramiko'
-      ]#,
+      ],
+    data_files=[('external', ['bm/b1.gif', 'bm/b2.gif']),
+                ('bin', ['bin/module1.py']),
+                ('conf',['conf/confModule1.json'])
+                ]
   #  dependency_links = [
   #      "http://dev.danse.us/trac/pathos"
   #  ]
