@@ -3,28 +3,41 @@
 <h2>Installation</h2>
 
 1. Setting up a dedicated [virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
+We will use the python library already present on the system (the "--system-site-packages" flag), to avoid
+the usually painfull installation of numpy.
+`$ mkdir GPCR
+$ cd GPCR
+$ virtualenv --system-site-packages
+$ mkdir venv/modules
+$ pip install pyproteins --target=venv/modules`
 
-In you environment folder create a `venv/modules` folder
+2. Modify the venv/bin/activate script to indicate python the pyproteins location
 
 
-create a
-
-edit venv/bin/activate
-_OLD_VIRTUAL_PATH="$PATH"
-PATH="$VIRTUAL_ENV/bin:$PATH"
-export PATH
 
 export PYTHONPATH="$VIRTUAL_ENV/modules:$PYTHONPATH"
 export DRMAA_LIBRARY_PATH="/opt/sge/lib/lx24-amd64/libdrmaa.so"
 export HHLIB="/usr/local/genome/src/hhsuite-2.0.16-linux-x86_64/lib/hh"
 
+create a
+
+
+edit
+_OLD_VIRTUAL_PATH="$PATH"
+PATH="$VIRTUAL_ENV/bin:$PATH"
+export PATH
 
 
 
 
-3. Installing the pathos library (multi-threading)
 
-    pip install following packages
+
+3. Installing the [pathos library](https://pypi.python.org/pypi/pathos) for multi-threading
+
+ This library is not packaged. Let's proceed to its manual installation:
+
+
+pip install following packages (eg: `pip install dill`)
 
 ⋅⋅* dill, version >= 0.2.4
 ⋅⋅* pox, version >= 0.2.2
