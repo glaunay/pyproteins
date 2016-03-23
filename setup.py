@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
   name = 'pyproteins',
-  version = '0.4',
+  version = '0.4c',
   license='BSD',
   description = 'Toolbox to manipulate protein sequence data',
   author = 'Guillaume Launay',
@@ -26,13 +26,13 @@ setup(
   include_package_data=True,
   zip_safe=False,
   py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
-  download_url = 'https://github.com/glaunay/pyproteins/tarball/0.4', # I'll explain this in a second
+  download_url = 'https://github.com/glaunay/pyproteins/tarball/0.4c', # I'll explain this in a second
   keywords = ['protein', 'sequence'], # arbitrary keywords
   classifiers = [],
   install_requires=[
           'bs4', 'biopython', 'numpy', 'paramiko'
       ],
-    data_files=[('external', ['bm/b1.gif', 'bm/b2.gif']),
+    data_files=[('external', ['external/pathos.tar.bz']),
                 ('bin', ['bin/module1.py']),
                 ('conf',['conf/confModule1.json'])
                 ]

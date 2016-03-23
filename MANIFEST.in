@@ -1,1 +1,3 @@
 graft external
+graft bin
+graft conf
