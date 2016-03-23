@@ -1,4 +1,4 @@
-graft external
-graft bin
-graft conf
+graft src/pyproteins/external
+graft src/pyproteins/bin
+graft src/pyproteins/conf
 exclude .*

@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
   name = 'pyproteins',
-  version = '0.5a',
+  version = '0.6',
   license='BSD',
   description = 'Toolbox to manipulate protein sequence data',
   author = 'Guillaume Launay',
@@ -26,17 +26,20 @@ setup(
   include_package_data=True,
   zip_safe=False,
   py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
-  download_url = 'https://github.com/glaunay/pyproteins/tarball/0.5a', # I'll explain this in a second
+  download_url = 'https://github.com/glaunay/pyproteins/tarball/0.6', # I'll explain this in a second
   keywords = ['protein', 'sequence'], # arbitrary keywords
   classifiers = [],
   install_requires=[
           'bs4', 'biopython', 'numpy', 'paramiko'
       ],
-  package_data=[
-            ('external', ['external/pathos.tar.bz']),
-            ('bin', ['bin/module1.py']),
-            ('conf',['conf/confModule1.json'])
-      ]
+   package_data = {
+   'pyproteins': ['conf/confModule1.json','bin/module1.py', 'external/*.bz']
+   },
+  #data_files=[
+  #          ('external', ['external/pathos.tar.bz']),
+  #          ('bin', ['bin/module1.py']),
+  #          ('conf',['conf/confModule1.json'])
+  #    ]
   #  dependency_links = [
   #      "http://dev.danse.us/trac/pathos"
   #  ]

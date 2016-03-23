@@ -1,41 +1,26 @@
 <h1>GPCR automodel suite receptor modelling module</h1>
 
 <h2>Installation</h2>
+Create and move to your project directory
+`$ mkdir GPCR
+$ cd GPCR
+`
+**All commands**, unless otherwise mentioned, **are intended to be executed from this folder**.
 
 1. Setting up a dedicated [virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
 We will use the python library already present on the system (the "--system-site-packages" flag), to avoid
-the usually painfull installation of numpy.
-`$ mkdir GPCR
-$ cd GPCR
-$ virtualenv --system-site-packages
-$ mkdir venv/modules
-$ pip install pyproteins --target=venv/modules`
+the usually painfull installation of numpy. To create and activate the virtual environment simply:
+`$ virtualenv --system-site-packages
+$ source venv/activate`
 
-2. Modify the venv/bin/activate script to indicate python the pyproteins location
-
-
-
-export PYTHONPATH="$VIRTUAL_ENV/modules:$PYTHONPATH"
-export DRMAA_LIBRARY_PATH="/opt/sge/lib/lx24-amd64/libdrmaa.so"
-export HHLIB="/usr/local/genome/src/hhsuite-2.0.16-linux-x86_64/lib/hh"
-
-create a
-
-
-edit
-_OLD_VIRTUAL_PATH="$PATH"
-PATH="$VIRTUAL_ENV/bin:$PATH"
-export PATH
-
-
-
-
-
+2. Installing the pyproteins librairy
+`(venv)$ mkdir venv/modules
+(venv)$ pip install pyproteins --target=venv/modules`
 
 3. Installing the [pathos library](https://pypi.python.org/pypi/pathos) for multi-threading
 
- This library is not packaged. Let's proceed to its manual installation:
-
+This library is not packaged, it is provided in venv/modules/pyproteins/external.
+First, let's proceed to pathos depedencies installation:
 
 pip install following packages (eg: `pip install dill`)
 
@@ -44,13 +29,26 @@ pip install following packages (eg: `pip install dill`)
 ⋅⋅* ppft, version >= 1.6.4.5
 ⋅⋅* multiprocess, version >= 0.70.3
 
-    then
-    `$ cd pathos-master
-    $ python setup.py build
-    $ python setup.py install`
+then install the pathos librairy itself
+`(venv)$ tar -xjf venv/modules/pyproteins/external/pathos.tar.bz
+(venv)$ cd pathos-master
+(venv)$ python setup.py build
+(venv)$ python setup.py install`
 
+3. Modify the venv/bin/activate script to indicate python the pyproteins location
+
+export PYTHONPATH="$VIRTUAL_ENV/modules:$PYTHONPATH"
+export DRMAA_LIBRARY_PATH="/opt/sge/lib/lx24-amd64/libdrmaa.so"
+export HHLIB="/usr/local/genome/src/hhsuite-2.0.16-linux-x86_64/lib/hh"
+
+Restart the virtual environment to load all settings,
+`$ deactivate
+$ source venv/activate`
+
+Your working directories dont have to be in this current directory. But you **must** start the virtual environment to be able to use pyproteins.
 
 <h2>Configuring</h2>
+A
 
 <h2>Usage</h2>
 
