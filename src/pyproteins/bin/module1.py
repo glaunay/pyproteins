@@ -46,7 +46,7 @@ def loadQuery(queryInputFile, workDir):
 
     if queryInputFile.endswith('fasta'):
         queryObj = hQ.Query(fastaFile=queryInputFile)
-        queryObj.make(bSge=bGridEngine, workDir=workDir, blastDbRoot=beanConfig['BLASTDBROOT'], blastDb=beanConfig['blastDb'])
+        queryObj.make(bSge=bGridEngine, workDir=workDir, blastDbRoot=beanConfig['BLASTDBROOT'], blastDb=beanConfig['blastDb'], psipredDbRoot=beanConfig['psipredDbRoot'] ,psipredScript=beanConfig['executable']['runpsipred'])
         queryObj.beanDump(filePath=workDir + '/queryBean.json')
     if queryInputFile.endswith('json'):
         queryObj=hQ.loadFromBean(queryInputFile)

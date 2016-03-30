@@ -38,10 +38,14 @@ def dumpSgeBlast(peptideObj, param, scriptFile):
         f.write(string)
     pyproteins.services.utils.chmodX(scriptFile)
 
-def dumpSgePsipred(peptideObj, param, scriptFile):
+def dumpSgePsipred(peptideObj, param, scriptFile): # We dont pass database to psipred, it is hard written in runpsipred shell script
     string  ='#!/bin/bash\nprintenv\n'
     string += 'export BLASTMAT=' + os.environ['BLASTMAT'] + '\n'
-    string += 'runpsipred ' + peptideObj.tag + '.fasta' + '\n'
+    string += 'export BLASTDB=' + param['psipredDbRoot'] + '\n'
+
+    psiPredCmd = param['psipredScript'] if 'psipredScript' in param else 'runpsipred'
+
+    string += psiPredCmd + ' ' + peptideObj.tag + '.fasta' + '\n'
 
     with open(scriptFile, "w") as f:
         f.write(string)

@@ -1,6 +1,7 @@
 {
     "executable" : {
-        "blastpgp" : "/usr/local/genome/blast/bin/blastpgp"
+        "blastpgp" : "/usr/local/genome/blast/bin/blastpgp",
+        "runpsipred" : "/projet/extern/save/gulaunay/bin/runpsipred"
     },
     "envVariables" : {
         "HHLIB" : "/usr/local/genome/src/hhsuite-2.0.16-linux-x86_64/lib/hh",
@@ -10,6 +11,7 @@
     "pddDir" : ["/projet/extern/save/gulaunay/work/GPCR/data/MAKE_CORE/PDB_DERIVED"],
     "pdbDir" : ["/projet/extern/save/gulaunay/work/GPCR/data/MAKE_CORE/PDB"],
     "BLASTDBROOT" : "/projet/extern/save/gulaunay/work/GPCR/data/GPCRDB/",
+    "psipredDbRoot" : "/projet/extern/save/gulaunay/work/GPCR/data/GPCRDB/",
     "blastDb" : "GPCRs",
 
     "registeredTemplate" : [

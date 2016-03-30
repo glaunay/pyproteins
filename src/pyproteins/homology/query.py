@@ -19,7 +19,7 @@ class Query(pyproteins.homology.core.Core): # Possible input, aa sequence string
         string += super(Query, self).__repr__()
         return string
 
-    def make(self, bSge=False, workDir=None, force=False, blastDbRoot=None, blastDb=None):
+    def make(self, bSge=False, workDir=None, force=False, blastDbRoot=None, blastDb=None, psipredScript=None, psipredDbRoot=None):
         # check ss2/ msa status
         bSse = False if self.sse else True
         bMsa = False if self.mAli else True
@@ -36,7 +36,10 @@ class Query(pyproteins.homology.core.Core): # Possible input, aa sequence string
                 'blastDbRoot' : blastDbRoot,
                 'rootDir' : workDir,
                 'bPsipred' : bSse,
-                'bBlast' : bMsa
+                'bBlast' : bMsa,
+                'ps' : bMsa,
+                "psipredDbRoot" : psipredDbRoot,
+                'psipredScript' : psipredScript
             }
             tmpPeptideSet = pyproteins.sequence.peptide.EntrySet(name="queryMakeTmpSet")
             tmpPeptideSet.add(self.peptide)
