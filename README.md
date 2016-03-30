@@ -1,18 +1,20 @@
 <h1>GPCR automodel suite : receptor modelling module</h1>
-*Last updated GL - 03232016*
+*Last updated GL - 03282016*
 <h2>Installation</h2>
 Create and move to your project directory
-`$ mkdir GPCR
-$ cd GPCR
-`
+>$ mkdir GPCR
+>
+>$ cd GPCR
+
 **All commands**, unless otherwise mentioned, **are intended to be executed from this folder**.
 
 1. Set up a dedicated [virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
 We will use the python library already present on the system (the "--system-site-packages" flag), to avoid
 the usually painfull installation of numpy.  
 To create and activate the virtual environment simply:
-`$ virtualenv --system-site-packages
-$ source venv/activate`
+>$ virtualenv --system-site-packages venv
+>
+>$ source venv/bin/activate`
 
 2. Install the pyproteins library
 `(venv)$ mkdir venv/modules
@@ -28,19 +30,27 @@ pip install following packages (eg: `pip install dill`)
     * multiprocess, version >= 0.70.3
 
 	Then install the pathos library itself:
-`(venv)$ tar -xjf venv/modules/pyproteins/external/pathos.tar.bz
-(venv)$ cd pathos-master
-(venv)$ python setup.py build
-(venv)$ python setup.py install` 
+>(venv)$ tar -xjf venv/modules/pyproteins/external/pathos.tar.bz
+>
+>(venv)$ cd pathos-master
+>
+>(venv)$ python setup.py build
+>
+>(venv)$ python setup.py install` 
 
 4. Modify the venv/bin/activate script to indicate python the pyproteins location
-	`export PYTHONPATH="$VIRTUAL_ENV/modules:$PYTHONPATH"`
-`export DRMAA_LIBRARY_PATH="/opt/sge/lib/lx24-amd64/libdrmaa.so"`
-`export HHLIB="/usr/local/genome/src/hhsuite-2.0.16-linux-x86_64/lib/hh"`
 
-Finally, restart the virtual environment to load all settings,
-`$ deactivate
-$ source venv/activate`
+	>export PYTHONPATH="\$VIRTUAL_ENV/modules:$PYTHONPATH"
+	>
+	>export DRMAA_LIBRARY_PATH="/opt/sge/lib/lx24-amd64/libdrmaa.so"
+	>
+	>export HHLIB="/usr/local/genome/src/hhsuite-2.0.16-linux-x86_64/lib/hh"
+
+	Finally, restart the virtual environment to load all settings,
+
+	>$ deactivate
+	>
+	>$ source venv/activate
 
 *Note*: your working directories dont have to be in this current directory. But you **must** start the virtual environment to be able to use pyproteins.
 
