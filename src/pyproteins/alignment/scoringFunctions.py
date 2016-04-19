@@ -1,6 +1,8 @@
 import numpy as np
 import re
 
+defaultAlphabet="ACDEFGHIKLMNPQRSTVWYX-"
+
 FILTER_LOCATION = { 'globular' : '/Users/guillaumelaunay/work/data/scoring/frosto_scores/all_globulars/AA_S6_C1_CD_1D',
                     'allAlphaTm' : '/Users/guillaumelaunay/work/data/scoring/frosto_scores/all_alpha_TM/FILTERS/AA_S6_C1_CD_1D'
 }
@@ -125,7 +127,7 @@ def unwrap_Needle(arg, **kwarg):
     return C.f(*arg, **kwarg)
 
 class Needle(object): #pairwise alignment btwn sequences
-    def __init__(self, alphabet=None):
+    def __init__(self, alphabet=defaultAlphabet):
         if not alphabet:
             raise ValueError("You must provide an amino-acid alphabet specifying the ordering of the frequency vectors")
     # must provide as mentioned in nw_custom, element iterator and elements pair scorer

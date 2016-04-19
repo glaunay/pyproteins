@@ -5,10 +5,11 @@ import pyproteins.services.utils
 import pyproteins.sequence.msa
 import pyproteins.sequence.psipred
 
-import drmaa
+import os
+if 'DRMAA_LIBRARY_PATH' in os.environ:
+    import drmaa
 
 import json
-import os
 import random
 import re
 import collections
