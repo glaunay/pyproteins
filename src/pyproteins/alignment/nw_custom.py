@@ -316,6 +316,11 @@ class nw(object):
 
 
 class Alignment(object):
+
+    def __iter__(self):
+        for i,e in enumerate(self.aliArrayOne):
+            yield  self.aliArrayOne[i], self.aliArrayTwo[i]
+
     def viewer(self):
         return viewer(self)
 
