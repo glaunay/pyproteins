@@ -258,6 +258,8 @@ class EntrySet(object): #customCollection.EntrySet
         for ext in ['.phr', '.pin', '.psq']:
             if os.path.isfile(bean['blastDbRoot'] + '/' + bean['blastDb'] + ext ):
                 continue
+            if os.path.isfile(bean['blastDbRoot'] + '/' + bean['blastDb'] + '.00' +  ext ):
+                continue
             raise ValueError, bean['blastDbRoot'] + '/' + bean['blastDb'] + ext + ' Not found, can\'t blast'
 
 

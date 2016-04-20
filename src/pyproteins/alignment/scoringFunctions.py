@@ -2,7 +2,7 @@ import numpy as np
 import re
 
 defaultAlphabet="ACDEFGHIKLMNPQRSTVWYX-"
-
+# Should package these too !!
 FILTER_LOCATION = { 'globular' : '/Users/guillaumelaunay/work/data/scoring/frosto_scores/all_globulars/AA_S6_C1_CD_1D',
                     'allAlphaTm' : '/Users/guillaumelaunay/work/data/scoring/frosto_scores/all_alpha_TM/FILTERS/AA_S6_C1_CD_1D'
 }

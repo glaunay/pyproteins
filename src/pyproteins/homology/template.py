@@ -61,6 +61,38 @@ class TemplatePeptide(pyproteins.sequence.peptide.Entry):
         pyproteins.sequence.peptide.Entry.__init__(self, id=datum['id'])
         self.pdbnum = []
 
+# pdbnum fasta/Seqres num conversion, fasta/Seqres numbering starts at 1
+# translating pdbnum -> seqres returns a int
+# translating seqres -> pdbnum returns a string
+
+    def numTranslate(self, seqNum=None, pdbNum=None):
+        if not seqNum and not pdbNum:
+            raise ValueError, 'must provide a sequence or pdb number'
+
+        if pdbNum:
+            if not str(pdbNum) in self.pdbnum:
+                raise ValueError, 'No such PDB number ' + str(pdbNum) + '\n' + str(self.pdbnum)
+            else:
+                i = self.pdbnum.index(str(pdbNum))
+                return (i + 1)
+                #print 'found pdb num ' + str(pdbNum) + 'at pos ' + str(i) + '\n'
+                #return self.aaSeq[i]
+
+# if fasta based position asked
+        i = seqNum - 1
+        if self.isPdbDefined(i):
+            return self.pdbnum[i]
+        return False
+
+    def isPdbDefined(self, index):
+        if (index < 1 ) or (index > len(self.pdbnum)):
+            raise ValueError, '\'' + str(index) + '\' out of bonds\n'
+        for c in str(self.pdbnum[index - 1]):
+            if c not in string.printable:
+                return False
+        return True
+
+
 class Template(pyproteins.homology.core.Core):
 
     def __repr__(self):
@@ -92,6 +124,12 @@ class Template(pyproteins.homology.core.Core):
         #    self.peptide.seq.pdbSeq
         print 'Template ' + self.id + ' loaded'
 
+    def numTranslate(self, pdbNum=None, seqNum=None):
+        val = self.peptide.numTranslate(pdbNum=pdbNum, seqNum=seqNum)
+        return val
+    def isPdbDefined(self, index):
+        val = self.peptide.isPdbDefined(index)
+        return val
 
     def store(self, tag='', psiBlastOutputXml=None, bMsa=False):
         fPath = self.folder if self.folder else os.getcwd()
@@ -133,13 +171,6 @@ class Template(pyproteins.homology.core.Core):
         #for atom in self.sequence
         return [ (Peptide.threeToOne(atom.get_parent().resname)) for atom in self.pdbSeq ]
 
-    def isPdbDefined(self, index):
-        if (index < 1 ) or (index > len(self.peptide.pdbnum)):
-            raise ValueError, '\'' + str(index) + '\' out of bonds\n'
-        for c in str(self.peptide.pdbnum[index - 1]):
-            if c not in string.printable:
-                return False
-        return True
 
 
 
