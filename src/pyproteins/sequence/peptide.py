@@ -18,11 +18,7 @@ from Bio.Blast import NCBIXML
 from subprocess import call
 from Bio import SeqIO
 
-
-
 def dumpSgeBlast(peptideObj, param, scriptFile):
-
-
     jBlast = 8
     if 'blastExecParam' in param:
         if '-j' in  param['blastExecParam']:
@@ -65,8 +61,9 @@ Peptide entry are the fundamental entity of the custom NW implementation
 '''
 ppServ = None
 
-def startPpServ():
-    pp = pyproteins.services.psipredServ.Socket()
+def startPpServ(service="migale"):
+    print "Opening remote annotation psipredServer with service named " + "\"" + service + "\""
+    pp = pyproteins.services.psipredServ.Socket(service)
     return pp
 
 '''
@@ -131,6 +128,7 @@ class EntrySet(object): #customCollection.EntrySet
             return
         self._parse(dataFile)
 
+
     def pluck(self):
         k = random.choice(self.data.keys())
         return self.data[k]
@@ -158,15 +156,18 @@ class EntrySet(object): #customCollection.EntrySet
             string += e.id + "\n"
         return string
 
-    def enrich(self, _blankShotID=None, *kwargs):
+    def enrich(self, _blankShotID=None, service="arwen", *kwargs):
+        global ppServ
         if not ppServ:
-            ppServ = startPpServ()
+            ppServ = startPpServ(service=service)
         stash = [d for d in self if not d.ss2]
         jobid = ppServ.push(peptidesList=stash, _blankShotID=_blankShotID)
-        data = ppServ.pull(jobid)
+        #data = ppServ.pull(jobid)
 
         for i,d in enumerate(stash):
-            d.ss2Bind(ss2Obj=data[i])
+            #d.ss2Bind(ss2Obj=data[i])
+            datum = ppServ.pull(jobid)
+            d.ss2Bind(ss2Obj=datum)
 
     def __iter__(self):
         for k in self.data:
@@ -349,6 +350,11 @@ class Entry(object):
         self.seq = str(records[0].seq)  #first record
 
 
+    def __eq__(x, y):
+        if self.seq == self.seq:
+            return True
+        return False
+
     def __hash__(self):
         if not self.seed:
             random.seed()
@@ -368,15 +374,23 @@ class Entry(object):
                 fOut.write(self.fasta)
         print 'peptide \'' + self.id + '\' fasta wrote to file ' + fName
 
-    def blast(self, xmlPsiBlastOutput, **kwargs): # return an msa Object
+    def blast(self, xmlPsiBlastOutput=None, xmlPsiBlastStream=None, strict=False): # return an msa Object
 
         def hit_check(hit):
             for i in range(0, len(hit.hsps) - 1):
                 for j in range(i + 1, len(hit.hsps)):
                     if hit.hsps[i].sbjct_start >= hit.hsps[j].sbjct_start:
                         if hit.hsps[i].sbjct_end <= hit.hsps[j].sbjct_end:
-                            raise ValueError( "hsp overlap error in hit named " + hit.title)
+                            errorString =  "hsp  " + str(i) + " / " + str(j) + "overlap error in hit named " + hit.title + "\n"
+                            errorString += str(hit.hsps[i].sbjct_start) + ',' + str(hit.hsps[i].sbjct_end) + ") vs (" + str(hit.hsps[j].sbjct_start) + ',' + str(hit.hsps[j].sbjct_end) + ')'
+                            #raise ValueError( errorString)
+                            print "Warning : " + errorString
 
+        def HspOverlap(mem, x):
+            for y in mem:
+                if (x[0] >= y[0] and  x[0] <= y[1]) : return True
+                if (x[1] >= y[0] and  x[1] <= y[1]) : return True
+            return False
 
         def hsp_merge(hsp, array):
 
@@ -394,7 +408,7 @@ class Entry(object):
         if not pyproteins.services.utils.which("blastpgp"):
             raise initError("Cant find blastpgp executable")
 
-        if not xmlPsiBlastOutput:
+        if not xmlPsiBlastOutput and not xmlPsiBlastStream:
             rootId = uuid.uuid4()
             self.fastaWrite(name=rootId)
 
@@ -402,7 +416,10 @@ class Entry(object):
             f = open(str(rootId) + '.xml')
             records = NCBIXML.parse(f)
         else :
-            f = open(xmlPsiBlastOutput)
+            if xmlPsiBlastOutput :
+                f = open(xmlPsiBlastOutput)
+            else:
+                f = xmlPsiBlastStream
             records = NCBIXML.parse(f)
 
         recordList = [x for x in records]
@@ -411,13 +428,20 @@ class Entry(object):
                 continue
             for hit in psiPass.alignments:
                 if len(hit.hsps) > 1:
-                    hit_check(hit)
+                    if strict:
+                        hit_check(hit)
                 if hit.hsps[0].sbjct == self.aaSeq:
-                    print "Self hit, skipping"
+                    #print "Self hit, skipping"
                     continue
                 title = str(hit.title) + '[' + ','.join([ str(hsp.sbjct_start) + '-' + str(hsp.sbjct_end) for hsp in hit.hsps ]) + ']'
                 datum = { 'id' : title,  'seq' : ['-'] * len(self) }
+                mem = []
                 for hsp in hit.hsps:
+                    if HspOverlap(mem, (hsp.sbjct_start,hsp.sbjct_end)):
+                        if strict:
+                            raise ValueError('hsp overlap error')
+                        continue
+                    mem.append((hsp.sbjct_start,hsp.sbjct_end))
                     hsp_merge(hsp, datum['seq'])
                 array.append(datum)
             break
@@ -462,6 +486,8 @@ class Entry(object):
                 self.seq = kwargs['seq']
             if 'desc' in kwargs:
                 self.description = kwargs['desc']
+
+
        #     if 'ss2' in kwargs:
        #         self.ss2 = kwargs['ss2']
 
@@ -515,7 +541,7 @@ class Entry(object):
             ss2Obj = pyproteins.services.psipredServ.collection(fileName=kwargs['file'])
 
         if ss2Obj.aaSeq != self.aaSeq:
-            raise ValueError("amino-acid sequence dont match\n" + ss2Obj.fasta + "\n" + self.fasta)
+            raise ValueError("amino-acid sequence dont match\nss2Obj_aaSeq : \"" + ss2Obj.aaSeq + "\"\n not equal to \npeptide_aaSeq : \"" + self.aaSeq + "\"")
         self.ss2Obj = ss2Obj
 
     @property

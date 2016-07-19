@@ -8,7 +8,7 @@ indexer arguments supply a indexing function to be called for each objects
 cIndexer arguments supply a common indexing function to be called once for the entiere collection
     --> eg: Read from a single catalogue file the mapping between object accessors and their fileName
 '''
-class EntrySet():
+class EntrySet(object):
     def __init__(self, collectionPath=None, constructor=None, typeCheck=None, indexer=None, cIndexer=None):
 
         if not collectionPath:
@@ -43,8 +43,18 @@ class EntrySet():
             string += k + '\t' + status + "\n"
         return string
 
-    def add(self, id):
-        self.data[id] = { 'updated' : True, 'location' : None, 'e' : self.constructor(id) } # Newly added object dont have location
+    def add(self, id, force=False):
+        if not isinstance(id, basestring):
+            for i in id:
+                if not force and i in self.data:
+    #                print str(i) + ' already part of collection'
+                    continue
+                self.data[i] = { 'updated' : True, 'location' : None, 'e' : self.constructor(i) } # Newly added object dont have location
+        else :
+            if not force and id in self.data:
+    #            print str(i) + ' already part of collection'
+                return
+            self.data[id] = { 'updated' : True, 'location' : None, 'e' : self.constructor(id) } # Newly added object dont have location
 
     def clear(self):
         n=len(self.data)
