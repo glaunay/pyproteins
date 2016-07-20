@@ -20,7 +20,14 @@ import string
 
 PDBparser = PDBParser()
 
-def makeAll(templateList, bMsa=True, bPsipred=False, workDir=os.getcwd(), bSge=False, force=False, blastDbRoot=None, blastDb=None):
+def makeAll(templateList, bMsa=True, bPsipred=False, workDir=os.getcwd(), bSge=False, force=False, blastDbRoot=None, blastDb=None, **kwargs):
+
+    jBlast = 8
+    for k,v in kwargs.iteritems():
+        if k == "blastParam":
+            jBlast = k['j'] if 'j' in v else jBlast
+
+    print '----->' + str(jBlast)
 
     if bSge:
         blastBean  = {
@@ -30,7 +37,7 @@ def makeAll(templateList, bMsa=True, bPsipred=False, workDir=os.getcwd(), bSge=F
             'rootDir' : workDir,
             'bPsipred' : bPsipred,
             'bBlast' : bMsa,
-            'blastExecParam' : { '-j' : 8 }
+            'blastExecParam' : { '-j' : jBlast }
         }
 
         if bMsa:
@@ -79,9 +86,8 @@ class TemplatePeptide(pyproteins.sequence.peptide.Entry):
                 #return self.aaSeq[i]
 
 # if fasta based position asked
-        i = seqNum - 1
-        if self.isPdbDefined(i):
-            return self.pdbnum[i]
+        if self.isPdbDefined(seqNum):
+            return self.pdbnum[seqNum - 1]
         return False
 
     def isPdbDefined(self, index):
@@ -146,16 +152,17 @@ class Template(pyproteins.homology.core.Core):
         if not self.folder:
             return False
         # pdbnum
+        for fPath in pyproteins.services.utils.find(name='*.fasta$', path=self.folder):
+            data = fastaFileToList(fPath)
+            self.peptide.seq = ''.join(data['data'])
+            self.peptide.desc = data['header']
+
         for file in os.listdir(self.folder):
             #print file
             fPath = self.folder + '/' + file
             if file.endswith('.pdbnum'):
                 data = fastaFileToList(fPath)
                 self.peptide.pdbnum = data['data']
-            if file.endswith('.fasta'):
-                data = fastaFileToList(fPath)
-                self.peptide.seq = ''.join(data['data'])
-                self.peptide.desc = data['header']
             if file.endswith('.psipred_ss2'):
                 self.peptide.ss2Bind(file=fPath)
             if file.endswith('.blast'):

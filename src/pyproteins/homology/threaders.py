@@ -58,6 +58,7 @@ def hhAlign(query=None, template=None, bSge=False, workDir=os.getcwd(), hhBinDir
 
         with drmaa.Session() as s:
             print('hhAlign drmaa session was started successfully')
+            print template
             jobListId = []
             jt = s.createJobTemplate()
             for i, tObj in enumerate(template):

@@ -78,18 +78,17 @@ def loadTemplateLibrary():
 
     for id in beanConfig["registeredTemplate"]:
         for pdbDir in beanConfig["pdbDir"]:
-            for fPdb in u.find(name='^pdb*' + id + '*ent$', path=pdbDir):
-                m = re.search("pdb([^\.]+)\.ent$", fPdb)
+            for fPdb in u.find(name='^pdb' + id + '*ent$', path=pdbDir):
+                m = re.search("pdb([^\.^\/]+)\.ent$", fPdb)
                 if m:
                     tag = m.group(1)
                 if templateShortList:
                     if tag not in templateShortList:
                         continue
-
                 for pddDir in beanConfig["pddDir"]:
                     metaDataFolder = u.find(name='*' + tag + '*', path=pddDir, sType='dir')
                     if len(metaDataFolder) != 1:
-                    #print metaDataFolder
+                        print metaDataFolder
                         continue
                     else:
                         templateObj = hT.Template(fPdb, id=id,folder=metaDataFolder[0])
@@ -101,7 +100,7 @@ def reBuildTemplateLibrary(bMsa=False,workDir=os.getcwd()):
     global templateLib
     if bMsa:
         tList = [ templateLib[k]['obj'] for k in templateLib ]
-        hT.makeAll(tList, bMsa=True, bSge=bGridEngine, workDir=workDir, blastDbRoot=beanConfig['BLASTDBROOT'], blastDb=beanConfig['blastDb'])
+        hT.makeAll(tList, bMsa=True, bSge=bGridEngine, workDir=workDir, blastDbRoot=beanConfig['BLASTDBROOT'], blastDb=beanConfig['blastDb'], blastParam=beanConfig['blastParam'])
 
 def readConfig(fPath):
     global beanConfig
@@ -121,6 +120,7 @@ def readConfig(fPath):
         loadTemplateLibrary()
 
     if bTemplateView:
+        print 'Current Template Library View'
         print str(templateLib)
 
 
@@ -137,6 +137,7 @@ def main(argv):
     global bTemplateMsaRebuild
     global bHhThread
     global nModel
+
     workDir=os.getcwd()
     queryInputFile = None
     print os.getcwd()
