@@ -6,7 +6,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 import json
-from copy import copy, deepcopy
+import copy
 
 import pyproteins.alignment.nw_custom
 import pyproteins.sequence.peptide
@@ -44,35 +44,69 @@ class AlignmentTypeError(AlignmentError):
         AlignmentError.__init__(self, nSeq)
         self.nPos = nPos
 
+def aaCoherce(key):
+    d = {
+        'A':'A',
+        'C':'C',
+        'D':'D',
+        'E':'E',
+        'F':'F',
+        'G':'G',
+        'H':'H',
+        'I':'I',
+        'K':'K',
+        'L':'L',
+        'M':'M',
+        'N':'N',
+        'P':'P',
+        'Q':'Q',
+        'R':'R',
+        'S':'S',
+        'T':'T',
+        'V':'V',
+        'W':'W',
+        'Y':'Y',
+        'Z': 'E',
+        'B': 'D',
+        'J': 'L',
+        'X': 'A',
+        'U': 'C',
+        ' ': '-',
+        '-': '-'
+    }
+    if key in d:
+        return d[key]
 
-aaCoherce = {
-    'A':'A',
-    'C':'C',
-    'D':'D',
-    'E':'E',
-    'F':'F',
-    'G':'G',
-    'H':'H',
-    'I':'I',
-    'K':'K',
-    'L':'L',
-    'M':'M',
-    'N':'N',
-    'P':'P',
-    'Q':'Q',
-    'R':'R',
-    'S':'S',
-    'T':'T',
-    'V':'V',
-    'W':'W',
-    'Y':'Y',
-    'Z': 'E',
-    'B': 'D',
-    'J': 'L',
-    'X': 'A',
-    ' ': '-',
-    '-': '-'
-}
+    print "Warning : weird amino-acid 1 letter code: " + key
+    return 'A'
+
+
+# Quick and dirty quality assesment of the coverage of one sequence w/ respect to the MASTER
+# no gap is expected in master ie 'seqOne'
+# We dont do a pairwise optimal sequence alignment, just read straight from the msa
+def seqPairScores(seqOne, seqTwo):
+    needle = pyproteins.alignment.scoringFunctions.Needle()
+
+    w1 = [Position( {'aa' : c, 'ss2' : None, 'burial' : None }) for c in seqOne]
+    w2 = [Position( {'aa' : c, 'ss2' : None, 'burial' : None }) for c in seqTwo]
+
+    s_id = 0
+    s_sim = 0
+    s_cov = 0
+    for i in range( min(len(seqOne), len(seqTwo)) ):
+        if '-' ==  w2[i].aa :
+            continue
+        s_cov += 1
+        if w1[i].aa == w2[i].aa:
+            s_id += 1
+            s_sim += 1
+            continue
+        sc = needle.fScore(w1[i], w2[i])
+        if sc > 0:
+            s_sim += 1
+
+    n = float(len(seqOne))
+    return (round(s_cov / n, 2),round(s_sim / n, 2), round(s_id / n, 2) )
 
 
 class Position():  ## Used for NW and custom scoring interface
@@ -191,12 +225,15 @@ def map(msaRef, msaShrink):
 class MsaBean():
     def __init__(self, matrix, header, backtrack=None):
         self.header = header
-        self.matrix = [ [aaCoherce[x] for x in r] for r in matrix ]
+        self.matrix = [ [aaCoherce(x) for x in r] for r in matrix ]
         self.backtrack = backtrack
         # HARD REPLACE ALL X instances by A
 
 
 class Msa(object):  # HARD REPLACE ALL X instances by A
+
+    def __len__(self):
+        return self.nSeq
 
     def vectors(self, seqNumRef=0):
         return VectorFreq(self, seqNumRef=0)
@@ -234,7 +271,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
     def getPept(self, x):
         hits = self.recordLookup(num=x)
         rec = hits.pop(0)
-        return Peptide.Entry(id=rec['header'], seq=rec['sequence'])
+        return pyproteins.sequence.peptide.Entry(id=rec['header'], seq=rec['sequence'])
 
     def __init__(self, fileName = None, msaBean = None, alphabet = "ACDEFGHIKLMNPQRSTVWY-", backtrack = None, jsBeanFile = None, id=None):
         self.alphabet = alphabet
@@ -245,7 +282,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             if fileName.endswith(".aln"): fType = "clustal"
             else : fType = "fasta"
             self.alignment = AlignIO.read(open(fileName), fType) # fasta
-            self.asMatrix = [[ aaCoherce[aa] for aa in list(record.seq) ] for record in self.alignment]
+            self.asMatrix = [[ aaCoherce(aa) for aa in list(record.seq) ] for record in self.alignment]
             self.headers = [record.id for record in self.alignment]
            # print dir(self.alignment)
            # print dir (self.asMatrix)
@@ -556,6 +593,13 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
         return msaAsString
 
 
+# Just count the sim/id  and coverage(non-gap) of each sequence related to master
+    def masterCoverage(self):
+
+        master = self[0]['sequence']
+
+        qData = [seqPairScores(master, self[i]['sequence']) for i in range(1 , len(self) )]
+        return qData
 '''
     def _scan_parallel(self, n):
         num_worker_threads = n

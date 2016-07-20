@@ -6,16 +6,47 @@ import os
 import json
 from cStringIO import StringIO
 import pyproteins.services.utils
+import time
 
-SOCKET = "/projet/extern/save/gulaunay/tmp/socket/ppsvr"
+CONF = {
+    "migale" : {
+        "socket" : "/projet/extern/save/gulaunay/tmp/socket/ppsvr",
+        "host" : "migale.jouy.inra.fr",
+        "client" : "gulaunay"
+    },
+    "arwen"  : {
+        "socket" : "/home/glaunay/tmp/socket/ppsvr",
+        "host" : "arwen.ibcp.fr",
+        "client" : "glaunay"
+    }
+}
+
+
 INPUT_FORMAT='^[\s]*([\d]+)[\s]+([\S]+)[\s]+([\S]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+)'
 
 
 
 
+def dumpSlurmBatch(location, njobs, app="psiblast"):
+
+    if app == "psiblast":
+        string = "#!/bin/bash\n#SBATCH --job-name=psiPredArray\n#SBATCH -p express-mobi\n#SBATCH --qos express-mobi\n#SBATCH --output=psiPredArray%A_%a.out\n\n#SBATCH --error=psiPredArray%A_%a.err\n"
+        string += "#SBATCH --array=1-" + str(njobs) + "\n#SBATCH --time=0:05:00\n#SBATCH --workdir=" + location + "\n#SBATCH --ntasks=1\n#SBATCH -N 1\n"
+        string += "~/runpsipred -i " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.fasta -d ~/db/uniprot_sprot_current -r " + location + "/$SLURM_ARRAY_TASK_ID\n"
+    elif app == "blastpgp":
+        string = "#!/bin/bash\n#SBATCH --job-name=psiBlastArray\n#SBATCH -p express-mobi\n#SBATCH --qos express-mobi\n#SBATCH --output=" + location + "/psiBlastArray%A_%a.out\n\n#SBATCH --error=" + location + "/psiBlastArray%A_%a.err\n"
+        string += "#SBATCH --array=1-" + str(njobs) + "\n#SBATCH --time=0:05:00\n#SBATCH --wait\n#SBATCH --workdir=" + location + "\n#SBATCH --ntasks=1\n#SBATCH -N 1\n"
+        #string += "echo blastpgp -j 2 -m 7 -i " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.fasta -d ~/db/uniprot_swissprot_current -o " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.blast\n"
+        string += "module load /software/mobi/modules/ncbi-blast/2.2.26\n"
+        fastaInput = location + "/peptide_\$SLURM_ARRAY_TASK_ID.fasta"
+        outputFile = location + "/peptide_\$SLURM_ARRAY_TASK_ID.blast"
+        string += "/software/mobi/ncbi-blast/ncbi-blast-2.2.26/bin/blastpgp -b 500 -j 3 -m 7 -i " +  fastaInput + " -d ~/db/uniprot_sprot_current -o " + outputFile + "; touch " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.done\n"
+        #string += "/software/mobi/ncbi-blast/ncbi-blast-2.2.26/bin/blastpgp -j 1 -m 7 -i " +  fastaInput + " -d ~/db/nr/nr70 -o " + outputFile + "; touch " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.done\n"
+
+    return string
 
 def isValidRecord(line):
-    #print line
+   # print line
     m = re.match(INPUT_FORMAT, line)
     if m:
         return True
@@ -23,22 +54,47 @@ def isValidRecord(line):
 
 
 
-class Socket():
-    def __init__(self, url="migale.jouy.inra.fr", username="gulaunay"):
+
+
+
+class Socket(object):
+    def __init__(self, service="migale", app="psiblast", **kwargs):
         self.client = paramiko.client.SSHClient()
         self.client.load_system_host_keys()
-        self.client.connect(hostname=url, username=username)
+        self.user = CONF[service]["client"]
+        self.host = CONF[service]["host"]
+        self.socket = CONF[service]["socket"]
+        self.serviceName = service
         self.pool = {}
-        self.user = username
-        self.host = url
-    def push(self, fileList=None, peptidesList=None, _blankShotID=None):
+        self.localCache = None
+        self.app = app # Intended to specify blastpgp or psiblast
+        self.client.connect(hostname=self.host, username=self.user)
+        if 'localCache' in kwargs:
+            self.localCache = kwargs['localCache']
+
+
+    def close(self) :
+        self.client.close()
+
+    def push(self, fileList=None, peptidesList=None, _blankShotID=None, previous=None):
         if _blankShotID:
             name = _blankShotID
+        elif previous:
+            name = previous
         else:
             name = uuid.uuid1().get_hex()
+
         self.pool[name] = {
-            'socket' :  SOCKET + "/" + name
+            'socket' :  self.socket + "/" + name
         }
+
+        if self.localCache :
+            self.pool[name]['localCache'] = self.localCache + "/" + name
+            if not previous:
+                print "creating local cache at " + self.pool[name]['localCache']
+            #p = subprocess.Popen(['mkdir ', self.pool[name]['localCache']], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                os.mkdir(self.pool[name]['localCache'])
+
         if not _blankShotID:
             self.client.exec_command("mkdir " + self.pool[name]['socket'])
 
@@ -49,51 +105,136 @@ class Socket():
         else:
             raise ValueError("No input to process")
 
-        print 'Chunk content ' + str(self.pool[name]['inputs'])
+        if previous:
+            print "socket ready to pull previous job " + name
+            return name
 
-        cmd = 'submitPsipred.sh ' + self.pool[name]['socket']  + ' ' + ' '.join([self.pool[name]['socket'] + '/' + os.path.basename(f) for f in self.pool[name]['inputs'] ])
-        #print cmd + "\n"
+        #print 'Chunk content ' + str(self.pool[name]['inputs'])
+        if self.serviceName == "migale" :
+            cmd = 'submitPsipred.sh ' + self.pool[name]['socket']  + ' ' + ' '.join([self.pool[name]['socket'] + '/' + os.path.basename(f) for f in self.pool[name]['inputs'] ])
+        elif self.serviceName == "arwen" :
+            slurmBatchString = dumpSlurmBatch( self.pool[name]['socket'], len(self.pool[name]['inputs']), app=self.app)
+            slurmBatchFile = self.pool[name]['socket'] + '/' + self.app + 'ArraySlurm.sh'
+            cmd = "echo -e \"" + slurmBatchString + "\" >" + slurmBatchFile + "\n"
+            self.client.exec_command(cmd)
+            cmd = "sbatch " + slurmBatchFile
 
         if _blankShotID:
             print "Not executing remote command:\"" + cmd + "\""
             return name
 
+        print name + " : " + str(len(self.pool[name]['inputs'])) + " " + self.app
 
         ans = self.client.exec_command(cmd)
+        o =  ans[1].read()
+        print "---->" + o
         s =  ans[2].read()
         if s:
             raise ValueError(s)
+
+        if self.serviceName == "arwen":
+            while True:
+                time.sleep( 5 )
+                cmd = "ls " + self.pool[name]['socket'] + "/peptide_*.done | wc -l"
+                ans = self.client.exec_command(cmd)
+                o =  ans[1].read()
+                #print o
+                #print type(o)
+                if len(self.pool[name]['inputs']) == int(o):
+                    print "Exiting Remote"
+                    break
+
         return name
 
+    # We implement a generator b/c xml output of several blast cant be all loaded
+    # We'll consume then in turn instead
     def pull(self, chunkid):
+
+        print "-->" + self.app + "\n"
+
         if chunkid not in self.pool:
             raise ValueError("unknwon id \"" + chunkid + "\"")
+
+        if self.app == "psipred":
+            data = self._pullPsipred(chunkid)
+            for d in data:
+                pass
+                #yield d
+
+        elif self.app == "blastpgp":
+            for i, e in enumerate(self.pool[chunkid]['inputs']):
+
+                cmd = 'cat ' + self.pool[chunkid]['socket'] + "/peptide_" + str(i + 1) + ".blast"
+                ans = self.client.exec_command(cmd)
+                data = ans[1].read()
+                #print ans[1].read()
+                yield StringIO(data)
+
+
+
+    def _pullPsipred (self, chunkid):
         data = []
         for i, e in enumerate(self.pool[chunkid]['inputs']):
-            ss2File = self.pool[chunkid]['socket'] + "/qsub_" + str(i + 1) + "/input.ss2"
+            if self.serviceName == "migale" :
+                ss2File = self.pool[chunkid]['socket'] + "/qsub_" + str(i + 1) + "/input.ss2"
+            elif self.serviceName == "arwen" :
+                ss2File = self.pool[chunkid]['socket'] + "/peptide_" + str(i + 1) + ".ss2"
+            else :
+                raise ValueError("unknown service name \"" + self.serviceName + "\"\n")
             cmd = "cat " + ss2File
-            #print cmd
+            print cmd
             ans = self.client.exec_command(cmd)
             data.append(collection(stream=ans[1]))
         return data
 
+
     def _pushFiles(self, name, fileList): # sending fasta files
+
         cmd = ['scp'] + fileList + [ self.user + '@' + self.host + ':' + self.pool[name]['socket'] ]
         #print cmd
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE).wait()
         return [ os.path.basename(f) for f in fileList ]
 
-    def _pushPeptides(self, name, peptidesList): # dumping peptide object content to remote fasta file
-        fList = []
+    def _wrap(self, name, peptidesList):
         for i, e in enumerate(peptidesList):
-            fname = self.pool[name]['socket'] + "/peptide_" + str(i) + ".fasta"
-            cmd = "(echo \"" + e.fasta.replace("\n", "\" && echo \"") + "\") > " + fname # echo format should be moved to Peptide object
-            print cmd
-            ans = self.client.exec_command(cmd)
+            e.fastaWrite(path=self.pool[name]['localCache'], fileName="peptide_" + str(i + 1))
 
-            print ans[1].read()
+        pyproteins.services.utils.make_tarfile(self.pool[name]['localCache'] + '.tar.gz', self.pool[name]['localCache'])
+        self._pushFiles(name, [self.pool[name]['localCache'] + '.tar.gz'])
+
+        cmd = 'cd ' + self.pool[name]['socket'] + ';tar -xzf ' + name + '.tar.gz; for ifile in  ' + name + '/peptide_*.fasta;do mv $ifile ./;done;rmdir ' + name
+        stdin, stdout, stderr = self.client.exec_command(cmd)
+        stdout.channel.recv_exit_status(); # blocking
+
+    def _pushPeptides(self, name, peptidesList): # dumping peptide object content to remote fasta file
+
+        if self.pool[name]['localCache']:
+            self._wrap(name, peptidesList)
+            print 'wrapped'
+
+        fList = []
+        cmd = ''
+
+        for i, e in enumerate(peptidesList):
+            fname = self.pool[name]['socket'] + "/peptide_" + str(i + 1) + ".fasta"
             fList.append(fname)
+
+            if self.pool[name]['localCache']:
+                continue
+
+            cmd += "(echo \"" + e.fasta.replace("\n", "\" && echo \"") + "\") > " + fname  + "\n"# echo format should be moved to Peptide object
+            #print cmd
+      #      ans = self.client.exec_command(cmd)
+
+            #print ans[1].read()
+
+            stdin, stdout, stderr = self.client.exec_command(cmd)
+            while True:
+                if stdout.channel.exit_status_ready():
+                    break
+            #self.client.exec_command(cmd)
+
         return fList
 
 class collection():
