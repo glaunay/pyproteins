@@ -377,13 +377,16 @@ class Alignment(object):
         i = -1
         j = -1
         for n in range(0, len(self.aliArrayOne)):
+
+            #print str(self.aliArrayOne[n]) + ' == ' + str(self.aliArrayTwo[n])
+
             if str(self.aliArrayOne[n]) != '-':
                 i += 1
             if str(self.aliArrayTwo[n]) != '-':
                 j += 1
             if str(self.aliArrayOne[n]) == '-' or str(self.aliArrayTwo[n]) == '-':
                 continue
-            if self.aliArrayOne[n] == self.aliArrayTwo[n]:
+            if str(self.aliArrayOne[n]) == str(self.aliArrayTwo[n]):
                 idPct += 1
             if not self.simPct:
                 if self.scorer(self.aliArrayOne[n], self.aliArrayTwo[n]) > 0:
