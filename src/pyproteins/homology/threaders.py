@@ -174,7 +174,7 @@ def pirDump(datum, template=None, query=None, chainID='A',filePath=None):
     pirContent += ' : ' + templateStop + ' : ' + chainID + '::::\n'
     pirContent += pyproteins.services.utils.lFormat(strands['T']) + '\n\n'
     pirContent += '>P1;' + query.id + '\nsequence:' + query.id +':1: :' + str(len(query.fasta)) +': ::::\n'
-    pirContent += pyproteins.services.utils.lFormat(strands['T']) + '\n'
+    pirContent += pyproteins.services.utils.lFormat(strands['Q']) + '\n'
 
     with open (filePath, 'w') as f:
         f.write(pirContent)

@@ -27,7 +27,7 @@ INPUT_FORMAT='^[\s]*([\d]+)[\s]+([\S]+)[\s]+([\S]+)[\s]+([0-9\.]+)[\s]+([0-9\.]+
 
 
 
-def dumpSlurmBatch(location, njobs, app="psiblast"):
+def dumpSlurmBatch(location, njobs, app="psiblast", param={}):
 
     if app == "psiblast":
         string = "#!/bin/bash\n#SBATCH --job-name=psiPredArray\n#SBATCH -p express-mobi\n#SBATCH --qos express-mobi\n#SBATCH --output=psiPredArray%A_%a.out\n\n#SBATCH --error=psiPredArray%A_%a.err\n"
@@ -40,7 +40,10 @@ def dumpSlurmBatch(location, njobs, app="psiblast"):
         string += "module load /software/mobi/modules/ncbi-blast/2.2.26\n"
         fastaInput = location + "/peptide_\$SLURM_ARRAY_TASK_ID.fasta"
         outputFile = location + "/peptide_\$SLURM_ARRAY_TASK_ID.blast"
-        string += "/software/mobi/ncbi-blast/ncbi-blast-2.2.26/bin/blastpgp -b 500 -j 3 -m 7 -i " +  fastaInput + " -d ~/db/uniprot_sprot_current -o " + outputFile + "; touch " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.done\n"
+
+        bBlast = str(param['bBlast']) if 'bBlast' in param else '500'
+
+        string += "/software/mobi/ncbi-blast/ncbi-blast-2.2.26/bin/blastpgp -b " + bBlast + " -j 3 -m 7 -i " +  fastaInput + " -d ~/db/uniprot_sprot_current -o " + outputFile + "; touch " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.done\n"
         #string += "/software/mobi/ncbi-blast/ncbi-blast-2.2.26/bin/blastpgp -j 1 -m 7 -i " +  fastaInput + " -d ~/db/nr/nr70 -o " + outputFile + "; touch " + location + "/peptide_\$SLURM_ARRAY_TASK_ID.done\n"
 
     return string
@@ -76,7 +79,7 @@ class Socket(object):
     def close(self) :
         self.client.close()
 
-    def push(self, fileList=None, peptidesList=None, _blankShotID=None, previous=None):
+    def push(self, fileList=None, peptidesList=None, _blankShotID=None, previous=None, jobParameters=None):
         if _blankShotID:
             name = _blankShotID
         elif previous:
@@ -87,6 +90,8 @@ class Socket(object):
         self.pool[name] = {
             'socket' :  self.socket + "/" + name
         }
+
+        self.currentJobParameters = jobParameters if jobParameters else {}
 
         if self.localCache :
             self.pool[name]['localCache'] = self.localCache + "/" + name
@@ -113,7 +118,7 @@ class Socket(object):
         if self.serviceName == "migale" :
             cmd = 'submitPsipred.sh ' + self.pool[name]['socket']  + ' ' + ' '.join([self.pool[name]['socket'] + '/' + os.path.basename(f) for f in self.pool[name]['inputs'] ])
         elif self.serviceName == "arwen" :
-            slurmBatchString = dumpSlurmBatch( self.pool[name]['socket'], len(self.pool[name]['inputs']), app=self.app)
+            slurmBatchString = dumpSlurmBatch( self.pool[name]['socket'], len(self.pool[name]['inputs']), app=self.app, param=self.currentJobParameters)
             slurmBatchFile = self.pool[name]['socket'] + '/' + self.app + 'ArraySlurm.sh'
             cmd = "echo -e \"" + slurmBatchString + "\" >" + slurmBatchFile + "\n"
             self.client.exec_command(cmd)
