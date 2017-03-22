@@ -7,6 +7,7 @@ import json
 from cStringIO import StringIO
 import pyproteins.services.utils
 import time
+import tarfile
 
 CONF = {
     "migale" : {
@@ -72,12 +73,29 @@ class Socket(object):
         self.localCache = None
         self.app = app # Intended to specify blastpgp or psiblast
         self.client.connect(hostname=self.host, username=self.user)
+        self.previous = False
         if 'localCache' in kwargs:
             self.localCache = kwargs['localCache']
 
 
     def close(self) :
         self.client.close()
+
+    def isCompleted(self, name, fileList, peptidesList):
+
+        nFile = len(fileList) if fileList else len(peptidesList)
+
+        if self.app == "blastpgp":
+            blastResultsFolder = self.pool[name]['localCache'] + '/blastTarBall'
+            if not os.path.isdir(blastResultsFolder):
+                return False
+            for i in range(0, nFile):
+                if not os.path.exists(blastResultsFolder+'/peptide_' + str(i + 1) + '.blast'):
+                    print blastResultsFolder+'/peptide_' + str(i + 1) + '.blast not found'
+                    return False
+            print 'Successfully recovered ' + str(nFile) + ' blast result files'
+            return True
+        return False
 
     def push(self, fileList=None, peptidesList=None, _blankShotID=None, previous=None, jobParameters=None):
         if _blankShotID:
@@ -103,14 +121,23 @@ class Socket(object):
         if not _blankShotID:
             self.client.exec_command("mkdir " + self.pool[name]['socket'])
 
+        if not fileList and not peptidesList:
+            raise ValueError("No input to process")
+
+        if previous:
+            print 'Previous identifier provided, checking completion status ...'
+            if self.isCompleted(name, fileList=fileList, peptidesList=peptidesList):
+                self.previous = True
+            else:
+                print "uncompleted"
+
         if fileList:
             self.pool[name]['inputs'] = self._pushFiles(name, fileList)
         elif peptidesList:
             self.pool[name]['inputs'] = self._pushPeptides(name, peptidesList)
-        else:
-            raise ValueError("No input to process")
 
-        if previous:
+
+        if self.previous:
             print "socket ready to pull previous job " + name
             return name
 
@@ -167,13 +194,35 @@ class Socket(object):
                 #yield d
 
         elif self.app == "blastpgp":
+
+            if not self.previous:
+                print "OHOHO"
+                tarBlastFile = str(chunkid) + '_blast.gz'
+            # Create remote archive
+            # fetch it back w/ sftp
+            # unpack and yield f.read()
+                cmd = 'cd ' + self.pool[chunkid]['socket'] + '; if [[ ! -d blastTarBall ]];then mkdir blastTarBall; for ifile in  *.blast;do cp -f $ifile ./blastTarBall;done;'
+                cmd += 'tar -czf ' + tarBlastFile + ' blastTarBall;fi;'
+            #print "gogo==>" + cmd
+                stdin, stdout, stderr = self.client.exec_command(cmd)
+                stdout.channel.recv_exit_status(); # blocking
+                self._pullFiles(chunkid, tarBlastFile)
+                tar = tarfile.open(self.pool[chunkid]['localCache'] + '/' + tarBlastFile)
+                tar.extractall(path=self.pool[chunkid]['localCache'])
+                tar.close()
+
             for i, e in enumerate(self.pool[chunkid]['inputs']):
 
-                cmd = 'cat ' + self.pool[chunkid]['socket'] + "/peptide_" + str(i + 1) + ".blast"
-                ans = self.client.exec_command(cmd)
-                data = ans[1].read()
+                with open (self.pool[chunkid]['localCache'] + '/blastTarBall/peptide_' + str(i + 1) + ".blast"  , "r") as myfile:
+                    data=myfile.readlines()
+
+               # self.pool[name]['socket']
+
+                #cmd = 'cat ' + self.pool[chunkid]['socket'] + "/peptide_" + str(i + 1) + ".blast"
+                #ans = self.client.exec_command(cmd)
+                #data = ans[1].read()
                 #print ans[1].read()
-                yield StringIO(data)
+                yield StringIO(''.join(data))
 
 
 
@@ -193,11 +242,23 @@ class Socket(object):
         return data
 
 
-    def _pushFiles(self, name, fileList): # sending fasta files
+    def _pullFiles(self, name, fileList): # getting results files
 
-        cmd = ['scp'] + fileList + [ self.user + '@' + self.host + ':' + self.pool[name]['socket'] ]
+        fileList = [fileList] if isinstance(fileList, basestring) else fileList
+        if not self.previous:
+            sourceFiles = [  self.user + '@' + self.host + ':' + self.pool[name]['socket']  + '/' + f for f in fileList ]
+            cmd = ['scp'] + sourceFiles + [ self.pool[name]['localCache'] ]
         #print cmd
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE).wait()
+        return [ os.path.basename(f) for f in fileList ]
+
+    def _pushFiles(self, name, fileList): # sending fasta files
+        if not self.previous:
+            cmd = ['scp'] + fileList + [ self.user + '@' + self.host + ':' + self.pool[name]['socket'] ]
+        #print cmd
+
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE).wait()
         return [ os.path.basename(f) for f in fileList ]
 
@@ -213,6 +274,9 @@ class Socket(object):
         stdout.channel.recv_exit_status(); # blocking
 
     def _pushPeptides(self, name, peptidesList): # dumping peptide object content to remote fasta file
+
+        if self.previous:
+            return [ self.pool[name]['socket'] + "/peptide_" + str(i + 1) + ".fasta"  for i, e in enumerate(peptidesList) ]
 
         if self.pool[name]['localCache']:
             self._wrap(name, peptidesList)

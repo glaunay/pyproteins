@@ -372,7 +372,7 @@ class Entry(object):
         fName = path + '/' + str(fileName) + '.fasta'
         with open (fName, 'w') as fOut:
                 fOut.write(self.fasta)
-        print 'peptide \'' + self.id + '\' fasta wrote to file ' + fName
+        #print 'peptide \'' + self.id + '\' fasta wrote to file ' + fName
 
     def blast(self, xmlPsiBlastOutput=None, xmlPsiBlastStream=None, strict=False): # return an msa Object
 

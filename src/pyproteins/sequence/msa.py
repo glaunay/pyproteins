@@ -93,10 +93,23 @@ def seqPairScores(seqOne, seqTwo):
     s_id = 0
     s_sim = 0
     s_cov = 0
+
+    n_count = 0
+
     for i in range( min(len(seqOne), len(seqTwo)) ):
-        if '-' ==  w2[i].aa :
+        if '-' ==  w2[i].aa and '-' ==  w1[i].aa: # Both have gaps, ignore position
             continue
-        s_cov += 1
+
+        if '-' != w1[i].aa:
+            n_count += 1 # aligned position of reference sequence count it
+
+        if '-' !=  w2[i].aa and '-' !=  w1[i].aa: # reference sequence does not have a gap,
+            s_cov += 1
+
+        if '-' ==  w2[i].aa or '-' ==  w1[i].aa:
+            continue
+
+
         if w1[i].aa == w2[i].aa:
             s_id += 1
             s_sim += 1
@@ -105,7 +118,12 @@ def seqPairScores(seqOne, seqTwo):
         if sc > 0:
             s_sim += 1
 
-    n = float(len(seqOne))
+    #n = float(len(seqOne) - n_miss)
+    n = float(n_count)
+
+   # print "--->" + str(n) + " :: " + str(s_sim)
+   # print "=>" + str( round(s_sim / n, 2) )
+
     return (round(s_cov / n, 2),round(s_sim / n, 2), round(s_id / n, 2) )
 
 
@@ -599,6 +617,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
         master = self[0]['sequence']
 
         qData = [seqPairScores(master, self[i]['sequence']) for i in range(1 , len(self) )]
+
         return qData
 '''
     def _scan_parallel(self, n):

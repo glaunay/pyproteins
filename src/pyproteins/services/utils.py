@@ -8,6 +8,115 @@ from types import ModuleType
 import stat
 import tarfile
 
+
+
+def stringToSlice(mystring):
+    return slice(*map(lambda x: int(x.strip()) if x.strip() else None, mystring.split(':')))
+
+def nonblank_lines(f):
+    for l in f:
+        line = l.rstrip()
+        if line:
+            yield line
+
+'''
+Container w/ loading/dumping capabilities for tsv formated text-file
+'''
+class Tsv(object):
+    def __init__(self, stream, ofs='\t', Nskip=0, dataParser=None, headerParser=None):
+        self.ofs = ofs
+        self.keymap = []
+        self.data = []
+        self.Nskip = Nskip
+        self.dataParser = dataParser
+        self.headerParser = headerParser
+
+
+        if hasattr(stream, 'read'):
+            self._loadStream(stream)
+        elif isinstance(stream, basestring):
+            if os.path.isfile(stream):
+                self._loadFile(stream)
+            else :
+                self._loadString(stream)
+        elif isinstance(stream, list):
+            self._loadList(stream)
+        else:
+            raise TypeError('Cant parse/load ' + str(stream) )
+
+    def _loadStream(self, stream):
+        for i in range(self.Nskip):
+            stream.readline()
+        if self.headerParser:
+            self.keymap = self.headerParser(stream.readline().replace("\n", ""))
+        else:
+            self.keymap = stream.readline().replace("\n", "").split(self.ofs)
+
+        if self.dataParser:
+            self.data = [ self.dataParser(l) for l in nonblank_lines(stream) ]
+        else:
+            self.data = [ self._push(l) for l in nonblank_lines(stream) ]
+
+
+
+    def _loadList(self, inputList):
+
+        if self.headerParser:
+            self.keymap = self.headerParser( inputList[self.Nskip].replace("\n", "") )
+        else :
+            self.keymap = inputList[self.Nskip].replace("\n", "").split(self.ofs)
+
+        if self.dataParser:
+            self.data = [ self.dataParser(l) for l in nonblank_lines(inputList[ (self.Nskip+1): ])]
+        else :
+            self.data = [ self._push(l) for l in nonblank_lines(inputList[ (self.Nskip+1): ])]
+
+
+    def _loadFile(self, fPath):
+        with open(fPath, 'r') as stream:
+            self._loadStream(stream)
+
+    def _loadString(self, inputRaw):
+        l = inputRaw.split('\n')
+        self._loadList(l)
+
+
+    def __len__(self):
+        return len(self.data)
+
+    def _push(self, inputRaw):
+        #print ">" + self.ofs+ "<"
+        #print inputRaw
+        d = { self.keymap[i] : val for i, val in enumerate( inputRaw.split(self.ofs) ) }
+        return d
+
+    def __iter__(self):
+        for d in self.data:
+            yield d
+
+    def __str__(self):
+        asString= ''
+        for i,value in enumerate(self.data):
+            asString += '# Element n_' + str(i) + '\n'
+            for k in self.keymap:
+                if k not in value:
+                    continue
+                asString += '\'' + k + '\' : ' + value[ k ] + '\n'
+        return asString
+
+    def write(self):
+        asString= '\t'.join(self.keymap) + '\n'
+        for d in self :
+            buf = [ d[ k ] for k in self.keymap ]
+            asString += '\t'.join(buf) + '\n'
+        return asString
+
+def bruteDecode(input):
+    codecs=["ascii","utf_8","utf_8_sig","big5","big5hkscs","cp037","cp424","cp437","cp500","cp720","cp737","cp775","cp850","cp852","cp855","cp856","cp857","cp858","cp860","cp861","cp862","cp863","cp864","cp865","cp866","cp869","cp874","cp875","cp932","cp949","cp950","cp1006","cp1026","cp1140","cp1250","cp1251","cp1252","cp1253","cp1254","cp1255","cp1256","cp1257","cp1258","euc_jp","euc_jis_2004","euc_jisx0213","euc_kr","gb2312","gbk","gb18030","hz","iso2022_jp","iso2022_jp_1","iso2022_jp_2","iso2022_jp_2004","iso2022_jp_3","iso2022_jp_ext","iso2022_kr","latin_1","iso8859_2","iso8859_3","iso8859_4","iso8859_5","iso8859_6","iso8859_7","iso8859_8","iso8859_9","iso8859_10","iso8859_11","iso8859_13","iso8859_14","iso8859_15","iso8859_16","johab","koi8_r","koi8_u","mac_cyrillic","mac_greek","mac_iceland","mac_latin2","mac_roman","mac_turkish","ptcp154","shift_jis","shift_jis_2004","shift_jisx0213","utf_32","utf_32_be","utf_32_le","utf_16","utf_16_be","utf_16_le","utf_7"]
+    for codec in codecs:
+        string = self.value.decode(codec)
+
+
 def make_tarfile(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir))
