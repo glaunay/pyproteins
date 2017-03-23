@@ -14,6 +14,36 @@ import pyproteins.alignment.scoringFunctions
 
 import pathos.multiprocessing as mp
 
+aaCode = {
+        'A':'A',
+        'C':'C',
+        'D':'D',
+        'E':'E',
+        'F':'F',
+        'G':'G',
+        'H':'H',
+        'I':'I',
+        'K':'K',
+        'L':'L',
+        'M':'M',
+        'N':'N',
+        'P':'P',
+        'Q':'Q',
+        'R':'R',
+        'S':'S',
+        'T':'T',
+        'V':'V',
+        'W':'W',
+        'Y':'Y',
+        'Z': 'E',
+        'B': 'D',
+        'J': 'L',
+        'X': 'A',
+        'U': 'C',
+        ' ': '-',
+        '-': '-'
+    }
+
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -45,37 +75,9 @@ class AlignmentTypeError(AlignmentError):
         self.nPos = nPos
 
 def aaCoherce(key):
-    d = {
-        'A':'A',
-        'C':'C',
-        'D':'D',
-        'E':'E',
-        'F':'F',
-        'G':'G',
-        'H':'H',
-        'I':'I',
-        'K':'K',
-        'L':'L',
-        'M':'M',
-        'N':'N',
-        'P':'P',
-        'Q':'Q',
-        'R':'R',
-        'S':'S',
-        'T':'T',
-        'V':'V',
-        'W':'W',
-        'Y':'Y',
-        'Z': 'E',
-        'B': 'D',
-        'J': 'L',
-        'X': 'A',
-        'U': 'C',
-        ' ': '-',
-        '-': '-'
-    }
-    if key in d:
-        return d[key]
+    global aaCode
+    if key in aaCode:
+        return aaCode[key]
 
     print "Warning : weird amino-acid 1 letter code: " + key
     return 'A'
@@ -301,6 +303,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             else : fType = "fasta"
             self.alignment = AlignIO.read(open(fileName), fType) # fasta
             self.asMatrix = [[ aaCoherce(aa) for aa in list(record.seq) ] for record in self.alignment]
+
             self.headers = [record.id for record in self.alignment]
            # print dir(self.alignment)
            # print dir (self.asMatrix)
@@ -323,33 +326,39 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
 
         self.nSeq = len(self.asMatrix)
         self.length = len(self.asMatrix[0])
-        self.frequency = [{c : 0 for c in list(alphabet)} for nCol in range(self.length)]
+        self._frequency = None
+    # Putting frequency attribute in lazy instantiation leads to a factor x4 constructor time
+    @property
+    def frequency(self):
+        if not self._frequency:
+            self._frequency = [{c : 0 for c in list(self.alphabet)} for nCol in range(self.length)]
 
+            for oRow in enumerate(self.asMatrix):
 
-        for oRow in enumerate(self.asMatrix):
+                nRow = oRow[0]
+                row = oRow[1]
+                try:
+                    if (len(row) != self.length):
+                        raise AlignmentLengthError(nSeq = nRow, nLen = len(row), base = self.length)
+                    for oCell in enumerate(row):
+                        nCol = oCell[0]
+                        char = oCell[1]
+                        if not re.search(char, self.alphabet):
+                            print "unknown character" + char
+                            raise AlignmentTypeError(nSeq = nRow, nPos = nCol, char = char)
+                            #sys.exit()
+                        else:
+                            self._frequency[nCol][char] += 1
 
-            nRow = oRow[0]
-            row = oRow[1]
-            try:
-                if (len(row) != self.length):
-                    raise AlignmentLengthError(nSeq = nRow, nLen = len(row), base = self.length)
-                for oCell in enumerate(row):
-                    nCol = oCell[0]
-                    char = oCell[1]
-                    if not re.search(char, alphabet):
-                        print "unknown character" + char
-                        raise AlignmentTypeError(nSeq = nRow, nPos = nCol, char = char)
-                        #sys.exit()
-                    else:
-                        self.frequency[nCol][char] += 1
+                except AlignmentLengthError as e:
+                    print 'Wrong'
+                    print "sequence length " + str(e.nLen) + " do not match at " + str(e.nSeq) + " (base length is " + str(e.nLen) + ")"
+                    sys.exit(0)
+                except AlignmentTypeError as e:
+                    print "unknown character \'" + str(e.char) + "\' at position " + str(e.nPos) + " in sequence " + str(e.nSeq)
+                    sys.exit(0)
 
-            except AlignmentLengthError as e:
-                print 'Wrong'
-                print "sequence length " + str(e.nLen) + " do not match at " + str(e.nSeq) + " (base length is " + str(e.nLen) + ")"
-                sys.exit(0)
-            except AlignmentTypeError as e:
-                print "unknown character \'" + str(e.char) + "\' at position " + str(e.nPos) + " in sequence " + str(e.nSeq)
-                sys.exit(0)
+        return self._frequency
 
     def __iter__(self):
         for i in range(0, self.nSeq):
