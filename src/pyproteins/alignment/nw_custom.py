@@ -221,6 +221,10 @@ class nw(object):
         self.wordOne = None
         self.wordTwo = None
 
+        if not self.matchCost:
+            Needle=scoringFunctions.Needle()
+            self.matchCost = Needle.fScore
+
     def vertiInsertionCost (self, i, j):
             if self.path_mat[i][j - 1] != "\\" :
                 return self.score_mat[i][j - 1] + self.ge;
@@ -320,6 +324,12 @@ class Alignment(object):
     def __iter__(self):
         for i,e in enumerate(self.aliArrayOne):
             yield  self.aliArrayOne[i], self.aliArrayTwo[i]
+
+    @property
+    def aaWords(self):
+        w1 = ('').join([ str(e) for e in self.aliArrayOne ])
+        w2 = ('').join([ str(e) for e in self.aliArrayTwo ])
+        return (w1, w2)
 
     def viewer(self):
         return viewer(self)

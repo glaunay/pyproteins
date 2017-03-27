@@ -12,8 +12,8 @@ from threading import Thread
 '''
 
 
-def map(array, callback, worker=2):
-    pool = lambdaPool(worker=worker, func=callback)
+def map(array, callback, worker=2, verbose=False):
+    pool = lambdaPool(worker=worker, func=callback, verbose=verbose)
     pool.load(array)
     x = pool.start()
     return x
@@ -25,28 +25,31 @@ class lambdaPool(object):
         while True:
             _i = len(self.outputs) - self.q.qsize()
             e = self.q.get()
-            print("I got " + e +" from queue its output index is " + str(_i))
-            #self.append(self.func(e))
+            if self.verbose:
+                print("I got " + e +" from queue its output index is " + str(_i))
             self.outputs[_i] = self.func(e)
             self.q.task_done()
 
-    def __init__(self, worker = 2, func=None):
+    def __init__(self, worker = 2, func=None, verbose=False):
         self.nbWorker = worker
         self.q = Queue()
         self.func = func
+        self.verbose = verbose
 
     def load(self, taskList):
         self.outputs = [ None for x in taskList ]
         for t in taskList:
             self.q.put(t)
     def start(self):
-        print '*** Main thread starting ' + str(self.q.qsize())
+        if self.verbose:
+            print '*** Main thread starting ' + str(self.q.qsize())
         for i in range(self.nbWorker):
             self.t = Thread(target=self.worker)
             self.t.daemon = True
             self.t.start()
-
-        print '*** Main thread waiting ' + str(self.q.qsize())
+        if self.verbose:
+            print '*** Main thread waiting ' + str(self.q.qsize())
         self.q.join()
-        print '*** Done'
+        if self.verbose:
+            print '*** Done'
         return self.outputs
