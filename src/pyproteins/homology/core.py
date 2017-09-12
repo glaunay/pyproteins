@@ -19,6 +19,7 @@ class Core(object):
         self.peptide = None
         self.sse = None
         self.id = None
+        self.filePath = None
         self.beanDatum = {
                             "comments" : None,
                             "id" : None,
@@ -38,6 +39,7 @@ class Core(object):
                 print "loading peptide sequence " + kwargs['sequence']
                 self.peptide = pyproteins.sequence.peptide.Entry(seq=kwargs['sequence'])
             elif 'fastaFile' in kwargs:
+                self.filePath = kwargs['fastaFile']
                 self.peptide = pyproteins.sequence.peptide.Entry()
                 self.peptide.parse(kwargs['fastaFile'])
                 self.beanDatum['files']['fasta'] = kwargs['fastaFile']
