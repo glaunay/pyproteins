@@ -309,8 +309,6 @@ class nw(object):
             if ihc > score_mat[i][j]:
                 path_mat[i][j] = '-'
                 score_mat[i][j] = ihc
-
-
         self.score_mat = score_mat
         self.path_mat = path_mat
         self.shape = shape
@@ -358,7 +356,6 @@ class Alignment(object):
     def _backtrack(self):
         i = self.score_mat.shape[0] - 1
         j = self.score_mat.shape[1] - 1
-
 
         self.aliArrayOne = []
         self.aliArrayTwo = []
@@ -502,6 +499,7 @@ class Alignment(object):
 #memfile.write(json.loads(serialized).encode('latin-1'))
 #memfile.seek(0)
 #a = numpy.load(memfile)
+
 
 
 

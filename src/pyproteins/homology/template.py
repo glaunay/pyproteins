@@ -1,5 +1,6 @@
 from Bio.PDB import *
 import pyproteins.sequence.peptide
+import pyproteinsExt.structure.coordinates as PDB
 import copy
 import pyproteins.sequence.msa
 import os
@@ -7,6 +8,14 @@ import pyproteins.homology.core
 import pyproteins.services.utils
 from shutil import copyfile
 import string
+import re
+
+# Modification
+d = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
+     'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N', 
+     'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W', 
+     'ALA': 'A', 'VAL':'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'}
+# End
 
 '''
     One or several pdb files
@@ -18,7 +27,7 @@ import string
 '''
 
 
-PDBparser = PDBParser()
+PDBparser = PDB.Parser()
 
 def makeAll(templateList, bMsa=True, bPsipred=False, workDir=os.getcwd(), bSge=False, force=False, blastDbRoot=None, blastDb=None, **kwargs):
 
@@ -65,6 +74,7 @@ def fastaFileToList(file):
 
 class TemplatePeptide(pyproteins.sequence.peptide.Entry):
     def __init__(self, datum):
+        print datum
         pyproteins.sequence.peptide.Entry.__init__(self, id=datum['id'])
         self.pdbnum = []
 
@@ -98,7 +108,7 @@ class TemplatePeptide(pyproteins.sequence.peptide.Entry):
                 return False
         return True
 
-
+# Create a template from a PDB Structure
 class Template(pyproteins.homology.core.Core):
 
     def __repr__(self):
@@ -109,26 +119,51 @@ class Template(pyproteins.homology.core.Core):
     def __init__(self, pdbSource, modelID=None, chain=None, folder=None, id=None):
         _id = id if id else os.path.basename(pdbSource)
         pyproteins.homology.core.Core.__init__(self, id=_id)
-        self.structure = None
-        self.pdbSeq = None
+        
+        self.structure = PDBparser.load(file=pdbSource)
+        # Extract CA sequence and compute pairwise dist
+        self.pdbSeq = [atom for model in self.structure.model for atom in model if atom.name == 'CA'] 
+        #self.pdbSeq = [ r['CA'] for r in self.structure if 'CA' in r ]
+
         self.pdbSourcePath = pdbSource
         self.folder = folder
-        self.pdbSource = PDBparser.get_structure('mdl', pdbSource)
-        model = self.pdbSource[0] if not modelID else self.pdbSource[modelID]
+
+        #self.pdbSource = PDBparser.get_structure('mdl', pdbSource)
+        #model = self.pdbSource[0] if not modelID else self.pdbSource[modelID]
         #By default we use first chain atom coordinates record, user defined alternative chain w/
         # chain argument
-        chainIdSorted = [ key for key, value in sorted(model.child_dict.items()) ]
-        self.structure = model[chainIdSorted[0]] if not chain else model[chain]
+        #chainIdSorted = [ key for key, value in sorted(model.child_dict.items()) ]
 
-        # Extract CA sequence and compute pairwise dist
-        self.pdbSeq = [ r['CA'] for r in self.structure if 'CA' in r ]
+        #self.structure = model[chainIdSorted[0]] if not chain else model[chain]
+        
+        # Modification -------------------------------------------------------
+        # -----> self.firstPosition = int(self.pdbSeq[0].get_parent().get_id()[1]) - 1
+            #-->self.resseq = [{'aa' : d.get(ca.get_parent().resname, 'Not Found'), 'pos' : ca.get_parent().get_id()[1]} for ca in self.pdbSeq]
+            #-->print self.resseq
+        # End
 
+        #self.pdbSeq[-1].get_parent()
         self.peptide = TemplatePeptide({ 'id' : self.id })
 
         self._setFromFolder()
         #if not self.peptide.seq:
         #    self.peptide.seq.pdbSeq
         print 'Template ' + self.id + ' loaded'
+
+
+    # Modification -- Function : Check if the amino acid in fasta file exist in the ATOME field of parsed PDB file stored in self.resseq 
+    def checkIsPDBDefined(self, hhDatum):
+        if (hhDatum['pos'] < 1 ) or (hhDatum['pos'] > len(self.resseq)):
+            raise ValueError, '\'' + str(index) + '\' out of bonds\n'
+        
+        PDBposAA = self.resseq[int(hhDatum['pos'])-1]
+        if hhDatum['aa'] == PDBposAA['aa']:
+            return True 
+        else:
+            return False
+    # End
+
+
 
     def numTranslate(self, pdbNum=None, seqNum=None):
         val = self.peptide.numTranslate(pdbNum=pdbNum, seqNum=seqNum)

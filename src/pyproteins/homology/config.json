@@ -1,0 +1,10 @@
+{
+    "soft": {
+        
+        "modeller": {
+            "command_line_call" : "mod9.18"
+        },
+
+        "hhAlign" : ""
+    }
+}
