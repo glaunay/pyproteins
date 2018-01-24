@@ -2,6 +2,16 @@ import urllib2
 import json
 from bs4 import BeautifulSoup
 
+proxyHttp = None
+
+def proxySetting(http=None, https=None):
+    if http:
+        global proxyHttp
+        proxyHttp = http
+        print "!!Proxy set to " + str(proxyHttp)
+
+
+
 class Container(object):
     def __init__(self, id, url=None, fileName=None):
         if not id:
@@ -22,11 +32,22 @@ class Container(object):
         return rawData
 
     def _fetch(self):
+        global proxyHttp
         #print "Trying to DL " + self.url
         try:
+            if proxyHttp:
+                #print 'using proxy' + str(proxyHttp)
+                #proxy = urllib2.ProxyHandler({'http': proxyHttp})
+                proxy = urllib2.ProxyHandler(proxyHttp)
+                opener = urllib2.build_opener(proxy)
+                urllib2.install_opener(opener)
+                con = urllib2.urlopen(self.url)
+               # soup = BeautifulSoup(''.join(website))
+            else:
+                #print 'using no proxy'
+                req = urllib2.Request(self.url, headers={'User-Agent' : "Magic Browser"})
+                con = urllib2.urlopen( req )
 
-            req = urllib2.Request(self.url, headers={'User-Agent' : "Magic Browser"})
-            con = urllib2.urlopen( req )
             rawData =  con.read()
             #response = urllib2.urlopen(self.url)
 
