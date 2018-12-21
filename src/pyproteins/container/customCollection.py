@@ -24,9 +24,22 @@ class EntrySet(object):
 
         self.root = collectionPath
         self.data = {}
+        # Try to index files
+        self._index()
+
+# Change cache location, re-index
+    def setCache(self, location=None, reIndex=True):
+        self.root = location
+        print "Changing cache location to " + self.root
+        if reIndex:
+            print "Reindexing " + self.root
+            self._index()
+
+    def _index(self):
         for fileName in os.listdir(self.root): # lazy initialization of objects
             id = self.indexer(fileName)
-            self.data[id] = { 'updated' : False, 'location' : self.root + '/' + fileName, 'e' : None }  #Entry(id,fileName = self.root + '/' + fileName
+            if id:
+                self.data[id] = { 'updated' : False, 'location' : self.root + '/' + fileName, 'e' : None }  #Entry(id,fileName = self.root + '/' + fileName
         print "Acknowledged " + str(len(self.data)) + " entries (" +  self.root + ")"
 
     def __len__(self):
@@ -39,8 +52,10 @@ class EntrySet(object):
     def __repr__(self):
         string = "Cache pool size " + str(len(self)) + '\n'
         for k,d in self.data.iteritems():
+            if not k or not d:
+                raise TypeError('Error here ::-> ' + str(k) + ' // ' + str(d) )
             status = "LOADED" if d['e'] else "LAZY"
-            string += k + '\t' + status + "\n"
+            string += str(k) + '\t' + str(status) + "\n"
         return string
 
     def add(self, id, force=False):
@@ -74,6 +89,7 @@ class EntrySet(object):
                 raise TypeError("invalid supplied identifier \"" + id + "\"")
 
         if id in self.data and reload:
+            print "Erasinf prev ref"
             self.delete(id)
         # Present but lazy initialized
         if id in self.data and not self.data[id]['e'] and self.data[id]['location']:

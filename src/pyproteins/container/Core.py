@@ -22,6 +22,8 @@ class Container(object):
         self.fileName = fileName
 
     def getXmlHandler(self):
+        if not self.fileName:
+            print 'got to fetch ' + self.id
         self.rawData = self._fetch() if not self.fileName else self._readFile()
         xmlH = BeautifulSoup(self.rawData, 'xml')
         return xmlH
