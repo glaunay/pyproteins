@@ -1,7 +1,8 @@
 import sys
 import os
 import errno
-import StringIO
+
+from io import StringIO as StringIO
 import re
 import os.path
 from types import ModuleType
@@ -133,9 +134,9 @@ def getAvailableTagFile(fPath, nLim=100):
                 else:
                     backUpFile = backUpFileRoot + '_' + str(i)
                     break
-                raise ValueError, 'Tag number limit exceeded for ' + fPath
+                raise ValueError('Tag number limit exceeded for ' + fPath)
 
-        print 'moving previous ' + fPath + ' to ' + backUpFile
+        print ('moving previous ' + fPath + ' to ' + backUpFile)
         os.rename(fPath, backUpFile)
     return fPath
 
@@ -230,9 +231,9 @@ def rreload(module):
 
 def tsvToDictList(fileName):
     buffer = tabularFileToList(fileName, separator = "\t")
-    print len(buffer)
+    print (len(buffer))
     keymap = buffer.pop(0)
-    print len(buffer)
+    print (len(buffer))
     data = []
     for d in buffer:
         data.append({})
