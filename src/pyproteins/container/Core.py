@@ -160,6 +160,12 @@ class mdTree:
         x, y = self._digest(k1, k2)
         self._push(x,y, datum)
 
+    def set(self, k1, k2, datum):# Over-riding leave
+        if self.autoAppendable:
+            raise TypeError("Can only override custom leave")
+        x, y = self._digest(k1, k2)
+        self._getMaySet(x,y, datum, force=True)
+
     def get (self, k1, k2): # Mutable ref returned
         x, y = self._digest(k1, k2)
         if x not in self.data:
@@ -173,12 +179,13 @@ class mdTree:
         el = self._getMaySet(x, y, value)
         return el
 
-    def _getMaySet(self, x, y, value): # Initailise leave to value if not created already
+    def _getMaySet(self, x, y, value, force=False): # Initailise leave to value if not created already
         if x not in self.data:
             self.data[x] = {}
-        if y not in self.data[x]:
+        if y not in self.data[x] or force:
             self.data[x][y] = value
         return self.data[x][y]
+
 
 
     def _testRef(self, x, y):

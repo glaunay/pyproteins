@@ -7,7 +7,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 import json
 import copy
-
+import math
 import pyproteins.alignment.nw_custom
 import pyproteins.sequence.peptide
 import pyproteins.alignment.scoringFunctions
@@ -256,8 +256,20 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
     def __len__(self):
         return self.nSeq
 
+    @property
+    def entropyS(self):
+        H = []
+        frequencies = VectorFreq(self)
+        for col in frequencies.data:
+            S = 0
+            for p in col.freq:
+                if p == 0.0:
+                    continue
+                S += p * math.log(p)   
+            H.append(-1 * S)
+        return H
     def vectors(self, seqNumRef=0):
-        return VectorFreq(self, seqNumRef=0)
+        return VectorFreq(self, seqNumRef=seqNumRef)
 
 
     def _scan_parallel_joblib(self, queryPeptide, n):
@@ -428,7 +440,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             ruler = None
             if isinstance(sliceExpression, list):
                 ruler = [ { 'lo' : int(reg.split(':')[0]), 'up' : int(reg.split(':')[1]) } for reg in sliceExpression ]
-            elif isinstance(sliceExpression, basestring):
+            elif isinstance(sliceExpression, str):
                 if sliceExpression == "*":
                     ruler = [{'lo' : 0, 'up' : nMax - 1 }]
                 else:
@@ -470,7 +482,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             data = _parse(litteral)
             columnSlice = data['column']
             recordSlice = data['record']
-
+        print(recordSlice)
         seqRuler = _setSlicer(recordSlice, self.nSeq)
         try:
             matrixTmp = [ x for ind, x in enumerate(self.asMatrix) if _isRuledIn(ind, seqRuler)]
@@ -540,6 +552,14 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
         msaObject = self.sliceTo(columnSlice = sliceList)
         return msaObject
 
+# Strip the MSA from any colmuns where specified master sequence features a gap
+    def maskMaster(self, masterIndex=0):
+        sliceList = [ str(i) + ':' + str(i) for i, letter in enumerate(self.asMatrix[masterIndex]) if letter != '-' ]
+
+        #print("Total number of masked columns ", str(len(sliceList)))
+        msaObject = self.sliceTo(columnSlice = sliceList)
+        return msaObject
+
     def __repr__(self):
 
         header = "Alignment dimensions = " + str(self.nSeq) + " sequences, " + str(self.length) + " columns\n"
@@ -577,13 +597,14 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
         dic = self.asDict()
         jsonString = json.JSONEncoder().encode(dic)
         return jsonString
-
+    
+    @property
     def shape(self) :
         return [self.nSeq, self.length]
 
     # retrieve a sequence in the msa, by index or regular expression
     # gap will be striped
-    def recordLookup(self, num=None, regExp=None):
+    def recordLookup(self, predicate=lambda x : True, regExp=None):
         def _strip(r):
             d = copy.deepcopy(r)
             if 'seq' in d:
@@ -592,23 +613,18 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             string = ''.join(d['sequence'])
             d['sequence'] = string.replace('-', '', len(string))
             return d
-
-        if num or num == 0:
-            d = self[num]
-            return [_strip(d)]
-
-        if not num and not regExp:
-            return [_strip(d) for d in self]
-
+    
+        _hits = [ d for i,d in enumerate(self) if predicate({"record" : d, "index" : i }) ]
+           
         hits = []
-        if regExp:
-            for r in self:
-                x = _strip(r)
-                m = re.search(regExp, x['sequence'])
-                if m:
-                    #print m
-                    hits.append(x)
-            return hits
+        if not regExp :
+            return [ _strip(r) for r in _hits ]
+        for r in _hits:
+            x = _strip(r)
+            m = re.search(regExp, x['sequence'])
+            if m:
+                hits.append(x)
+        return hits
 
     def __getitem__(self, k):
         return {'header' : self.headers[k], 'sequence' : ''.join(self.asMatrix[k]) }
