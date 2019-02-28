@@ -14,6 +14,8 @@ import pyproteins.alignment.scoringFunctions
 
 from multiprocessing import Pool
 
+def _filterPredicateDefault(self, statTuple, iSeq, jSeq):
+    return True
 
 aaCode = {
         'A':'A',
@@ -482,7 +484,7 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
             data = _parse(litteral)
             columnSlice = data['column']
             recordSlice = data['record']
-        print(recordSlice)
+       # print(recordSlice)
         seqRuler = _setSlicer(recordSlice, self.nSeq)
         try:
             matrixTmp = [ x for ind, x in enumerate(self.asMatrix) if _isRuledIn(ind, seqRuler)]
@@ -535,7 +537,6 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
         return newMsa
 
     def gapPurge (self, gapRatio = 0.5):
-        nGap = float(self.nSeq) < gapRatio
         sliceList = [ str(eO[0]) + ':' + str(eO[0]) for eO in enumerate(self.frequency) if float(eO[1]['-']) / float(self.nSeq) <= float(gapRatio)]
         print("keeping", str(len(sliceList)), "/", str(self.length),\
               " columns w/ gap ratio < ", gapRatio)
@@ -643,12 +644,35 @@ class Msa(object):  # HARD REPLACE ALL X instances by A
         return msaAsString
 
 
+
+
+    def masterFilter(self, predicate=_filterPredicateDefault, masterIndex=0):
+        qData = self.masterCoverage(masterIndex=masterIndex)
+        
+        rowIndexOK = [masterIndex]
+        j = 0
+        for i, stat in enumerate(qData):
+            if j == masterIndex:
+                j += 1
+            
+            if predicate(stat, self[i], self[j]):
+               rowIndexOK.append(j)
+            
+            j += 1
+
+        recordSliceList = [ str(c) + ':' + str(c) for c in sorted(rowIndexOK) ]
+
+        print("Total of filtered record ", len(recordSliceList) )
+        
+        msaObject = self.sliceTo(recordSlice = recordSliceList)
+        return msaObject.gapPurge(gapRatio=0.999999)
+        #return msaObject
 # Just count the sim/id  and coverage(non-gap) of each sequence related to master
-    def masterCoverage(self):
+    def masterCoverage(self, masterIndex=0):
 
-        master = self[0]['sequence']
+        master = self[masterIndex]['sequence']
 
-        qData = [seqPairScores(master, self[i]['sequence']) for i in range(1 , len(self) )]
+        qData = [seqPairScores(master, self[i]['sequence']) for i in range(0 , len(self) ) if not i == masterIndex ]
 
         return qData
 '''
