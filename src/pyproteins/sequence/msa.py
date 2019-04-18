@@ -170,7 +170,7 @@ class VectorFreq(): # this class provides the interface w/ the nw custom scoring
         self.refSeq = msaObject[seqNumRef]['sequence']
         skippedColumns = [i for i,j in enumerate(self.refSeq) if j == '-']
         self.__hookedMsa__ = msaObject
-        freq = [[ col[aa] / float(msaObject.shape()[0]) for aa in msaObject.alphabet ] for icol, col in enumerate(msaObject.frequency) if icol not in skippedColumns ]
+        freq = [[ col[aa] / float(msaObject.shape[0]) for aa in msaObject.alphabet ] for icol, col in enumerate(msaObject.frequency) if icol not in skippedColumns ]
         self.refSeq = self.refSeq.replace('-','', len(self.refSeq))
         self.data = [freqPosition({'aa' : self.refSeq[i], 'ss2' : None, 'burial' : None, 'f' : freq[i] }, self.__hookedMsa__) for i in range(0, len(freq))]
 
