@@ -188,17 +188,21 @@ class viewer(object):
         return Score_htmlContent + BackTrace_htmlContent
 
 class nw(object):
-    def __init__(self, gapOpen=-1.0, gapExtend=-1.0, matchScorer=_matchScorer):
+    def __init__(self, gapOpen=-1.0, gapExtend=-1.0, matchScorer=None):
         self.go = gapOpen
         self.ge = gapExtend
-        self.matchCost = matchScorer
+
         self.wordOne = ''
         self.wordTwo = ''
+        if not matchScorer:
+            print("No scoring functions specified using dummy match scorer")
+            self.matchCost = _matchScorer
+        else:
+            self.matchCost = matchScorer
+        #if not self.matchCost:
+        #    Needle=scoringFunctions.Needle()
+        #    self.matchCost = Needle.fScore
 
-        if not self.matchCost:
-            Needle=scoringFunctions.Needle()
-            self.matchCost = Needle.fScore
-            
     def __repr__(self):
         string1 = "Score matrix:\n              "
         string2 = "Path matrix:\n              "
@@ -387,8 +391,6 @@ class Alignment(object):
         j = -1
         for n in range(0, len(self.aliArrayOne)):
 
-            #print str(self.aliArrayOne[n]) + ' == ' + str(self.aliArrayTwo[n])
-
             if str(self.aliArrayOne[n]) != '-':
                 i += 1
             if str(self.aliArrayTwo[n]) != '-':
@@ -398,8 +400,10 @@ class Alignment(object):
             if str(self.aliArrayOne[n]) == str(self.aliArrayTwo[n]):
                 idPct += 1
             if not self.simPct:
+                #print(self.aliArrayOne[n], "XX", self.aliArrayTwo[n])
                 if self.scorer(self.aliArrayOne[n], self.aliArrayTwo[n]) > 0:
                     simPct += 1
+                    #if not str(self.aliArrayOne[n]) == str(self.aliArrayTwo[n]):
 
         self.idPct = round(float(idPct) / len(self.aliArrayOne) * 100, 2)
         if not self.simPct:
