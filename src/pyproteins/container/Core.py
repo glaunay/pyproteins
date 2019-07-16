@@ -6,6 +6,7 @@ from hashlib import md5
 import copy
 proxyHttp = None
 import json
+import gzip
 
 def proxySetting(http=None, https=None):
     if http:
@@ -23,6 +24,8 @@ class Container(object):
         self.rawData = None
         self.url = url
         self.fileName = fileName
+        # print("URL",self.url)
+        # print("FileName",self.fileName)
 
     def getXmlHandler(self):
         if not self.fileName:
@@ -35,11 +38,13 @@ class Container(object):
         return xmlH
 
     def _readFile(self):
+        # print("== READ FILE")
         with open (self.fileName, "r") as f:
             rawData = f.read()
         return rawData
 
     def _fetch(self):
+        # print("== FETCH")
         global proxyHttp
         #print ("Trying to DL " + self.url)
         try:
@@ -55,7 +60,7 @@ class Container(object):
                 #p2.7
                 #req = urllib2.Request(self.url, headers={'User-Agent' : "Magic Browser"})
                 #con = urlopen( req )
-                con = urllib.request.urlopen(self.url)
+                con = urllib.request.urlopen(self.url)  
             rawData =  con.read()
             #response = urllib2.urlopen(self.url)
 
@@ -70,6 +75,10 @@ class Container(object):
             return None
         #rawData = response.read()
         #response.close()
+
+        if self.url.endswith(".gz"):
+            rawData = gzip.decompress(rawData)
+
         return rawData
 
     def serialize (self):
