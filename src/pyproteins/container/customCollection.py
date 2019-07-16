@@ -98,6 +98,13 @@ class EntrySet(object):
             self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
             self.data[id]['updated'] = True
         
+        if id in self.data and self.data[id]['e']:
+            #print(" IN SELF DATA with entry")
+            if kwargs.get('type'):
+                #print(kwargs['type'],self.data[id]['e'].type)
+                if kwargs['type'] != self.data[id]['e'].type:
+                    self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
+        
         # Not present
         if not id in self.data:
             #print("NOT IN SELF DATA")
