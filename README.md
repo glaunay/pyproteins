@@ -62,3 +62,5 @@ DEPRECATED
 * scoringMatrix : Blosum62
 
 #### utils modules
+
+test Cecile
