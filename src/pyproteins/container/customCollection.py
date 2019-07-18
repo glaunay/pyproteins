@@ -10,7 +10,6 @@ cIndexer arguments supply a common indexing function to be called once for the e
 '''
 class EntrySet(object):
     def __init__(self, collectionPath=None, constructor=None, typeCheck=None, indexer=None, cIndexer=None):
-
         if not collectionPath:
             raise ValueError("You must specify a filesystem path to local cache")
         if not constructor:
@@ -24,6 +23,7 @@ class EntrySet(object):
 
         self.root = collectionPath
         self.data = {}
+        # print("DATA",self.data)
         # Try to index files
         self._index()
 
@@ -58,18 +58,19 @@ class EntrySet(object):
             string += str(k) + '\t' + str(status) + "\n"
         return string
 
-    def add(self, id, force=False):
+    def add(self, id, force=False, **kwargs):
+        # print("ADD", id)
         if not isinstance(id, str):
             for i in id:
                 if not force and i in self.data:
     #                print str(i) + ' already part of collection'
                     continue
-                self.data[i] = { 'updated' : True, 'location' : None, 'e' : self.constructor(i) } # Newly added object dont have location
+                self.data[i] = { 'updated' : True, 'location' : None, 'e' : self.constructor(i, **kwargs) } # Newly added object dont have location
         else :
             if not force and id in self.data:
     #            print str(i) + ' already part of collection'
                 return
-            self.data[id] = { 'updated' : True, 'location' : None, 'e' : self.constructor(id) } # Newly added object dont have location
+            self.data[id] = { 'updated' : True, 'location' : None, 'e' : self.constructor(id , **kwargs) } # Newly added object dont have location
 
     def clear(self):
         n=len(self.data)
@@ -83,26 +84,51 @@ class EntrySet(object):
             os.remove(self.data[id]['location'])
         self.data.pop(id, None)
 
-    def get(self, id, reload=False):
+    def get(self, id, reload=False, force_reading_cache=False, **kwargs):
+        print("GET", id)
+        if force_reading_cache:
+            if id not in self.data:
+                print("Not in cache")
+                return None
+            if not self.data[id]["location"]:
+                print("Not in cache")
+                return None
+            if not self.data[id]['e']:
+                self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
+            else:
+                if kwargs.get('type'):
+                    if kwargs['type'] != self.data[id]['e'].type:
+                        self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
+
+
         if self.typeCheck:
             if not self.typeCheck(id):
-                raise TypeError("invalid supplied identifier \"" + id + "\"")
-
+                raise TypeError("invalid supplied identifier \"" + id + "\"")           
         if id in self.data and reload:
             print ("Erasing prev ref")
             self.delete(id)
         # Present but lazy initialized
         if id in self.data and not self.data[id]['e'] and self.data[id]['location']:
-            self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'])
+            #print("IN SELF DATA no entry")
+            self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
             self.data[id]['updated'] = True
+        
+        if id in self.data and self.data[id]['e']:
+            #print(" IN SELF DATA with entry")
+            if kwargs.get('type'):
+                #print(kwargs['type'],self.data[id]['e'].type)
+                if kwargs['type'] != self.data[id]['e'].type:
+                    self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
+        
         # Not present
         if not id in self.data:
-            self.add(id)
-
-
+            #print("NOT IN SELF DATA")
+            self.add(id, **kwargs)
         return self.data[id]['e']
 
-    def serialize(self, force=False):
+    def serialize(self, force=False, ext=''):
+        # print("SERIALIZE")
+        # print(ext)
         c = 0
         t = 0
         for d in self:
@@ -113,7 +139,7 @@ class EntrySet(object):
 
             if d['updated'] or force:
                 if d['e']:
-                    d['location'] = self.root + '/' + d['e'].id + '.xml' if not d['location'] else d['location']
+                    d['location'] = self.root + '/' + d['e'].id + ext if not d['location'] else d['location']
 
                 mode = "wb"
                 try:
