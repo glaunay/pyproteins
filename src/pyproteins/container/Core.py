@@ -39,8 +39,12 @@ class Container(object):
 
     def _readFile(self):
         # print("== READ FILE")
-        with open (self.fileName, "r") as f:
-            rawData = f.read()
+        if self.fileName.endswith(".gz"):
+            with gzip.open(self.fileName, 'rb') as f:
+                rawData = f.read()
+        else:   
+            with open (self.fileName, "r") as f:
+                rawData = f.read()
         return rawData
 
     def _fetch(self):
