@@ -84,8 +84,23 @@ class EntrySet(object):
             os.remove(self.data[id]['location'])
         self.data.pop(id, None)
 
-    def get(self, id, reload=False, **kwargs):
+    def get(self, id, reload=False, force_reading_cache=False, **kwargs):
         print("GET", id)
+        if force_reading_cache:
+            if id not in self.data:
+                print("Not in cache")
+                return None
+            if not self.data[id]["location"]:
+                print("Not in cache")
+                return None
+            if not self.data[id]['e']:
+                self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
+            else:
+                if kwargs.get('type'):
+                    if kwargs['type'] != self.data[id]['e'].type:
+                        self.data[id]['e'] = self.constructor(id, fileName = self.data[id]['location'], **kwargs)
+
+
         if self.typeCheck:
             if not self.typeCheck(id):
                 raise TypeError("invalid supplied identifier \"" + id + "\"")           
