@@ -15,10 +15,10 @@ from setuptools import setup
 
 setup(
   name = 'pyproteins',
-  version = '1.4',
+  version = '1.5',
   license='BSD',
   description = 'Toolbox to manipulate protein sequence data',
-  author = 'Guillaume Launay',
+  author = 'Guillaume Launay & Cecile Hilpert',
   author_email = 'pitooon@gmail.com',
   url = 'https://github.com/glaunay/pyproteins', # use the URL to the github repo
   packages=find_packages('src'),
