@@ -84,8 +84,7 @@ class EntrySet(object):
             os.remove(self.data[id]['location'])
         self.data.pop(id, None)
 
-    def get(self, id, reload=False, force_reading_cache=False, **kwargs):
-        print("GET", id)
+    def get(self, id, reload=False, force_reading_cache=False, **kwargs): #fetchable=True,
         if force_reading_cache:
             if id not in self.data:
                 print("Not in cache")

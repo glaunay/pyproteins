@@ -15,6 +15,9 @@ def proxySetting(http=None, https=None):
         print ("!!Proxy set to " + str(proxyHttp))
 
 
+class EntryError(Exception):
+    pass
+
 
 class Container(object):
     def __init__(self, id, url=None, fileName=None):
@@ -27,8 +30,10 @@ class Container(object):
         # print("URL",self.url)
         # print("FileName",self.fileName)
 
-    def getXmlHandler(self):
+    def getXmlHandler(self, fetchable=True):
         if not self.fileName:
+            if not fetchable:
+                raise EntryError(f"{self.id} file is missing")
             print ('got to fetch ' + self.id)
         self.rawData = self._fetch() if not self.fileName else self._readFile()
         if not self.rawData:
