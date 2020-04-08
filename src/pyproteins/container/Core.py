@@ -146,11 +146,11 @@ class mdTreeEncoder(json.JSONEncoder): # DOESNOT WORK stringifed twice (by encod
 ## Semi matrix representation as a 
 ## Two lvl tree, top/down key are min/max md5 hash
 class mdTree:
-    def __init__(self, append=True):
+    def __init__(self, append=True, digestFn=None):
+
+        self._digest = digestFn if digestFn else self._digestDefault
 
         self.autoAppendable = append
-
-       # print(self.autoAppendable)
 
         self.data = {}
     
@@ -164,7 +164,7 @@ class mdTree:
     def keys(self): # Returns all primary and secondary keys
         return set ( list(self.data.keys()) + [ k for k in self.data for _k in self.data[k] ] )
 
-    def _digest(self, k1, k2):
+    def _digestDefault(self, k1, k2):
         _k1 = md5(k1.encode('utf-8')).hexdigest()
         _k2 = md5(k2.encode('utf-8')).hexdigest()
         x = k1 if _k1 < _k2 else k2 
