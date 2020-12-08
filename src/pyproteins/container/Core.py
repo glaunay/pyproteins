@@ -1,12 +1,15 @@
 import urllib.request
 import urllib.error
 import json
-from bs4 import BeautifulSoup
+from xml.etree.ElementTree import parse, dump, fromstring, register_namespace, ElementTree, tostring
+
 from hashlib import md5
 import copy
 proxyHttp = None
 import json
 import gzip
+
+print ("LXML VERSION")
 
 def proxySetting(http=None, https=None):
     if http:
@@ -38,8 +41,8 @@ class Container(object):
         self.rawData = self._fetch() if not self.fileName else self._readFile()
         if not self.rawData:
             raise ValueError("Error, empty xmlHandler")
-            
-        xmlH = BeautifulSoup(self.rawData, 'xml')
+        return fromstring(self.rawData)
+        #xmlH = BeautifulSoup(self.rawData, 'xml')
         return xmlH
 
     def _readFile(self):
