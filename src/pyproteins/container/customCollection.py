@@ -52,6 +52,9 @@ class EntrySet(object):
         for k,d in self.data.items():
             yield k
 
+    def has(self, id):
+        return id in self.data
+
     def __repr__(self):
         string = "Cache pool size " + str(len(self)) + '\n'
         for k,d in self.data.items():
