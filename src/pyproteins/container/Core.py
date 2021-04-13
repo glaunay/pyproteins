@@ -9,8 +9,6 @@ proxyHttp = None
 import json
 import gzip
 
-print ("LXML VERSION")
-
 def proxySetting(http=None, https=None):
     if http:
         global proxyHttp

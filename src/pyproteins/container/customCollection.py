@@ -56,12 +56,12 @@ class EntrySet(object):
         return id in self.data
 
     def __repr__(self):
-        string = "Cache pool size " + str(len(self)) + '\n'
+        string = f"<pyprotein.customCollection nelem={len(self)}>"
         for k,d in self.data.items():
             if not k or not d:
                 raise TypeError('Error here ::-> ' + str(k) + ' // ' + str(d) )
-            status = "LOADED" if d['e'] else "LAZY"
-            string += str(k) + '\t' + str(status) + "\n"
+#            status = "LOADED" if d['e'] else "LAZY"
+#            string += str(k) + '\t' + str(status) + "\n"
         return string
 
     def add(self, id, force=False, **kwargs):
