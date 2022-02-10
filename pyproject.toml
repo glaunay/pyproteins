@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "pyproteins"
+version = "2.0.0"
+description = "General purpose bionformatics library"
+authors = ["glaunay <pitooon@gmail.com>"]
+license = "BSD"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+biopython = "^1.79"
+numpy = "^1.22.2"
+lxml = "^4.7.1"
+bs4 = "^0.0.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
